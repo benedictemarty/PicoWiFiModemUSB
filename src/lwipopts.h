@@ -103,11 +103,11 @@
 #define SLIP_DEBUG                  LWIP_DBG_OFF
 #define DHCP_DEBUG                  LWIP_DBG_OFF
 
-// --- SNTP : synchronise l'heure pour la vérification de date des certificats TLS ---
-#define LWIP_DHCP_GET_NTP_SRV       1                       // serveur NTP via DHCP (option 42)
-#define SNTP_SERVER_DNS             1                       // autorise un nom (pool.ntp.org)
+// --- SNTP: sync the clock for TLS certificate date verification ---
+#define LWIP_DHCP_GET_NTP_SRV       1                       // NTP server via DHCP (option 42)
+#define SNTP_SERVER_DNS             1                       // allow a hostname (pool.ntp.org)
 #define SNTP_STARTUP_DELAY          0
-#define SNTP_SET_SYSTEM_TIME(sec)   sntpSetSystemTime(sec)  // callback (voir time_support.h)
+#define SNTP_SET_SYSTEM_TIME(sec)   sntpSetSystemTime(sec)  // callback (see time_support.h)
 #ifdef __cplusplus
 extern "C" {
 #endif

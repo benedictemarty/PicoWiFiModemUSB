@@ -107,28 +107,28 @@ static int lazyCaCb(void *ctx, const mbedtls_x509_crt *child,
    return 0;
 }
 
-// Vérification de date (mbedTLS n'a pas HAVE_TIME_DATE — il figeait le handshake avec
-// le callback de confiance). Renvoie 0 si `crt` est dans sa période de validité,
-// MBEDTLS_X509_BADCERT_FUTURE (pas encore valide) ou MBEDTLS_X509_BADCERT_EXPIRED selon
-// l'horloge SNTP. Comparaison lexicographique (année, mois, jour, h, min, s).
+// Date check (mbedTLS lacks HAVE_TIME_DATE — it stalled the handshake with the
+// trust callback). Returns 0 if `crt` is within its validity period,
+// MBEDTLS_X509_BADCERT_FUTURE (not yet valid) or MBEDTLS_X509_BADCERT_EXPIRED per
+// the SNTP clock. Lexicographic comparison (year, month, day, h, min, s).
 static uint32_t certDateFlags(const mbedtls_x509_crt *crt) {
    long cur[6];
-   epochToYMDHMS(modemNow(), cur);          // PAS gmtime_r (verrou → deadlock handshake)
+   epochToYMDHMS(modemNow(), cur);          // NOT gmtime_r (lock → handshake deadlock)
    const mbedtls_x509_time *vf = &crt->valid_from, *vt = &crt->valid_to;
    long from[6] = { vf->year, vf->mon, vf->day, vf->hour, vf->min, vf->sec };
    long to[6]   = { vt->year, vt->mon, vt->day, vt->hour, vt->min, vt->sec };
-   int cf = 0, ct = 0;                       // signe de (cur - valid_from) et (cur - valid_to)
+   int cf = 0, ct = 0;                       // sign of (cur - valid_from) and (cur - valid_to)
    for( int i = 0; i < 6 && cf == 0; ++i ) cf = (cur[i] > from[i]) - (cur[i] < from[i]);
    for( int i = 0; i < 6 && ct == 0; ++i ) ct = (cur[i] > to[i])   - (cur[i] < to[i]);
-   if( cf < 0 ) return MBEDTLS_X509_BADCERT_FUTURE;   // cur < valid_from → pas encore valide
-   if( ct > 0 ) return MBEDTLS_X509_BADCERT_EXPIRED;  // cur > valid_to   → expiré
+   if( cf < 0 ) return MBEDTLS_X509_BADCERT_FUTURE;   // cur < valid_from → not yet valid
+   if( ct > 0 ) return MBEDTLS_X509_BADCERT_EXPIRED;  // cur > valid_to   → expired
    return 0;
 }
 
-// Verify callback mbedTLS : appelé pour chaque cert de la chaîne PENDANT le handshake
-// (le cert est encore vivant). On ajoute le défaut de date aux flags → handshake refusé
-// si expiré/non encore valide. Seulement si l'heure est synchronisée (sinon on ne
-// rejette pas faute d'horloge fiable). Voir time_support.h.
+// mbedTLS verify callback: invoked for each cert in the chain DURING the handshake
+// (the cert is still alive). We OR the date fault into the flags → handshake rejected
+// if expired/not yet valid. Only if the time is synced (otherwise we don't reject,
+// lacking a reliable clock). See time_support.h.
 static int dateVerifyCb(void *ctx, mbedtls_x509_crt *crt, int depth, uint32_t *flags) {
    (void)ctx; (void)depth;
    if( timeSynced ) {
@@ -382,7 +382,7 @@ TCP_CLIENT_T *tcpConnect(TCP_CLIENT_T *client, const char *host, int portNum, bo
             mbedtls_ssl_config *conf = (mbedtls_ssl_config *)ssl->conf;
             if( settings.tlsVerify && hasCACert() ) {
                mbedtls_ssl_conf_ca_cb(conf, lazyCaCb, NULL);
-               mbedtls_ssl_conf_verify(conf, dateVerifyCb, NULL);  // vérif. date (SNTP)
+               mbedtls_ssl_conf_verify(conf, dateVerifyCb, NULL);  // date check (SNTP)
                mbedtls_ssl_conf_authmode(conf, MBEDTLS_SSL_VERIFY_REQUIRED);
             } else {
                mbedtls_ssl_conf_authmode(conf, MBEDTLS_SSL_VERIFY_NONE);

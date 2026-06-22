@@ -184,7 +184,7 @@ void setup(void) {
       if( cyw43_tcpip_link_status(&cyw43_state, CYW43_ITF_STA) == CYW43_LINK_UP ) {
          ser_set(DSR, ACTIVE);  // modem is finally ready or SSID not configured
          dns_init();
-         startSntp();           // synchronise l'heure une fois (arrêté ensuite, cf. loop)
+         startSntp();           // sync time once (stopped afterwards, see loop)
       }
       if( settings.autoExecute[0] ) {
          strncpy(atCmd, settings.autoExecute, MAX_CMD_LEN);
@@ -219,7 +219,7 @@ void loop(void) {
    cdc_task();
 #endif
 
-   maybeStopSntp();   // arrête SNTP dès la 1re synchro (évite le hang handshake)
+   maybeStopSntp();   // stop SNTP on first sync (avoids handshake hang)
 
    checkForIncomingCall();
 

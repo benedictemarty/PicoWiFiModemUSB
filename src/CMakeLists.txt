@@ -51,7 +51,7 @@ add_executable(${PROJECT_NAME}
 if(WOKWI)
       target_compile_definitions(${PROJECT_NAME} PRIVATE WOKWI_BUILD=1)
 endif()
-# Plancher horloge avant synchro SNTP : date de configuration CMake (cf. time_support.h).
+# Clock floor before the SNTP sync: CMake configuration date (see time_support.h).
 string(TIMESTAMP BUILD_EPOCH "%s" UTC)
 target_compile_definitions(${PROJECT_NAME} PRIVATE
       CYW43_HOST_NAME=\"${CYW43_HOST_NAME}\"

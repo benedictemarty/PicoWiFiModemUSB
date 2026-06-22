@@ -135,7 +135,7 @@ char *doTime(char *atCmd) {
       case '?': {
          ++atCmd;
          time_t utc = modemNow();
-         time_t loc = utc + (time_t)settings.tzOffsetMin * 60;   // heure locale (affichage)
+         time_t loc = utc + (time_t)settings.tzOffsetMin * 60;   // local time (display)
          struct tm tmv;
          gmtime_r(&loc, &tmv);
          char buf[32];
@@ -194,7 +194,7 @@ char *doTimeZone(char *atCmd) {
          if( colon ) mm = atoi(colon + 1);
          int off = sign * (hh * 60 + mm);
          atCmd[0] = NUL;
-         if( off >= -14 * 60 && off <= 14 * 60 ) {   // bornes UTC-14..+14
+         if( off >= -14 * 60 && off <= 14 * 60 ) {   // bounds UTC-14..+14
             settings.tzOffsetMin = off;
             sendResult(R_OK);
          } else {
