@@ -7,7 +7,8 @@
    // bundles with RSA-4096 roots; CA_LAZY_PEM_MAX 2560→3072. 0.3.0: SNTP time sync
    // + mbedTLS date verification (notBefore/notAfter); AT$TIME command. 0.3.1:
    // AT$TZ timezone offset now persisted in settings (AT&W); MAGIC_NUMBER bumped.
-   #define FW_VERSION            "0.3.1"
+   // 0.3.2: ATPOST command (HTTP/HTTPS POST with headers + body) for REST APIs.
+   #define FW_VERSION            "0.3.2"
 
    #define DEBUG                 0
    #define DEFAULT_SPEED         9600

@@ -5,6 +5,19 @@ Voir le document de conception : `../docs/design-proxy-tls-ssh.md`.
 
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.3.2] — 2026-06-22 — Commande `ATPOST` (requêtes HTTP/HTTPS POST)
+
+- **`ATPOST`** : symétrique d'`ATGET`, permet d'appeler des **API REST** depuis l'Oric.
+  `ATPOSThttp(s)://host[:port][/path]`, puis le modem lit des **en-têtes** optionnels, une
+  **ligne vide**, le **corps**, terminés par une ligne `.`. Le firmware calcule
+  `Content-Length` automatiquement, ajoute `Host` + `Connection: close`, envoie le `POST`
+  et passe en mode online (la réponse arrive sur la série). Réutilise `tcpConnect()` → TLS
+  (E-lazy + vérif. date) gratuit pour `https://`. Buffers : en-têtes 768 o, corps 3072 o
+  (`ERROR` si dépassement). `FW_VERSION` 0.3.2.
+- ✅ **Validé sur matériel** : `ATPOST https://httpbin.org/post` → HTTP 200, le corps JSON
+  est bien renvoyé par le serveur. Débloque les API modernes (POST + en-têtes + clé d'API),
+  p. ex. interroger une API LLM en HTTPS.
+
 ## [0.3.1] — 2026-06-22 — Fuseau horaire persistant
 
 - **`AT$TZ` désormais persistant** : le décalage est stocké dans `SETTINGS_T.tzOffsetMin`
