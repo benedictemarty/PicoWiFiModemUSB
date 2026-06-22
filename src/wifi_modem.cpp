@@ -364,8 +364,11 @@ void doAtCmds(char *atCmd) {
                } else if( !strncasecmp(atCmd, "O", 1) ) {
                   // go online
                   atCmd = goOnline(atCmd + 1);
+               } else if( !strncasecmp(atCmd, "POST", 4) ) {
+                  // POST to an HTTP(S) endpoint (body read after the command)
+                  atCmd = httpPost(atCmd + 4);
                } else if( !strncasecmp(atCmd, "GET", 3) ) {
-                  // get a web page (http only, no https)
+                  // fetch a web page over HTTP or HTTPS
                   atCmd = httpGet(atCmd + 3);
                } else if( settings.listenPort && !strncasecmp(atCmd, "A", 1) && serverHasClient(&tcpServer) ) {
                   // manually answer incoming connection
