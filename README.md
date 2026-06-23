@@ -1,6 +1,7 @@
 # Pico WiFi USB modem
 
 [![Latest release](https://img.shields.io/github/v/release/benedictemarty/PicoWiFiModemUSB?label=release)](https://github.com/benedictemarty/PicoWiFiModemUSB/releases/latest)
+[![Release downloads](https://img.shields.io/github/downloads/benedictemarty/PicoWiFiModemUSB/total?label=downloads)](https://github.com/benedictemarty/PicoWiFiModemUSB/releases)
 [![License](https://img.shields.io/badge/license-GPL--3.0-blue)](#license)
 [![Platform](https://img.shields.io/badge/platform-Pico%20W%20(RP2040)-c51a4a)](https://www.raspberrypi.com/products/raspberry-pi-pico/)
 
