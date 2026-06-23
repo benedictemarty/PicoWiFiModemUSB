@@ -8,7 +8,10 @@
    // + mbedTLS date verification (notBefore/notAfter); AT$TIME command. 0.3.1:
    // AT$TZ timezone offset now persisted in settings (AT&W); MAGIC_NUMBER bumped.
    // 0.3.2: ATPOST command (HTTP/HTTPS POST with headers + body) for REST APIs.
-   #define FW_VERSION            "0.3.2"
+   // 0.3.3: fix USB config descriptor — single CDC (was advertising 2 CDC / 4
+   // interfaces with CFG_TUD_CDC=1, so wTotalLength≠bNumInterfaces). Windows
+   // rejected it → no COM port (Linux tolerated it). Reported on defence-force forum.
+   #define FW_VERSION            "0.3.3"
 
    #define DEBUG                 0
    #define DEFAULT_SPEED         9600
