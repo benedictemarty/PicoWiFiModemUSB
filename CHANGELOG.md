@@ -28,6 +28,9 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/).
   et vérifie `wTotalLength == sizeof(desc)` et `bNumInterfaces == nb d'interfaces réelles`.
   Vérifié : ✅ passe sur le correctif, ❌ échoue sur la variante 0.2.0 (régression couverte).
 - `FW_VERSION` **0.3.3**.
+- **Release publiée** : [v0.3.3](https://github.com/benedictemarty/PicoWiFiModemUSB/releases/tag/v0.3.3)
+  (uf2 rebâti + `wificonf.bas` + image CA + manuels). `README.md` : ajout d'un badge
+  « downloads » de release à côté du badge de version.
 
 ## [0.3.2] — 2026-06-22 — Commande `ATPOST` (requêtes HTTP/HTTPS POST)
 
