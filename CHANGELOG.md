@@ -5,6 +5,30 @@ Voir le document de conception : `../docs/design-proxy-tls-ssh.md`.
 
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.3.3] — 2026-06-23 — Correctif descripteur USB (pas de port COM sous Windows)
+
+- **Bug** signalé par Dbug sur le forum defence-force
+  ([p34901](https://forum.defence-force.org/viewtopic.php?p=34901#p34901)) : après flash,
+  **aucun port COM** n'apparaît sous Windows (alors que LOCI voit « CDC modem mounted »
+  et que Linux fonctionne).
+- **Cause** : le descripteur de configuration USB (`src/usb_descriptors.c`) annonçait
+  **deux fonctions CDC** (4 interfaces, `bNumInterfaces = ITF_NUM_TOTAL = 4`) alors que
+  `CFG_TUD_CDC = 1`. Du coup `wTotalLength = CONFIG_TOTAL_LEN = 9 + 1×66 = 75` octets ne
+  couvrait que la 1re CDC (2 interfaces), pendant que `bNumInterfaces` en promettait 4.
+  Descripteur **incohérent** : Windows le rejette (pas de port COM), Linux le tolère.
+  Le 2ᵉ CDC était de toute façon **non fonctionnel** (le firmware ne parle qu'à
+  `tud_cdc_n(0)`). Bug présent depuis la v0.2.0 jusqu'à la v0.3.2.
+- **Correctif** : descripteur ramené à **une seule CDC** (interface AT du modem).
+  `src/usb_descriptors.c` : `enum` d'interfaces réduit à `ITF_NUM_TOTAL = 2`, suppression
+  du 2ᵉ `TUD_CDC_DESCRIPTOR` (config full-speed **et** high-speed), suppression de la
+  chaîne de string descriptor inutilisée. `wTotalLength = 75` ≡ `bNumInterfaces = 2`.
+  Équivaut au patch « 1 octet » (`bNumInterfaces` 0x04→0x02) trouvé par Dbug.
+- **Test** : nouveau test hôte autonome `validation/host-tests/test_usb_descriptors.c`
+  (+ `run.sh`) qui **compile le vrai `usb_descriptors.c`** (stubs `tusb.h`/`board_api.h`)
+  et vérifie `wTotalLength == sizeof(desc)` et `bNumInterfaces == nb d'interfaces réelles`.
+  Vérifié : ✅ passe sur le correctif, ❌ échoue sur la variante 0.2.0 (régression couverte).
+- `FW_VERSION` **0.3.3**.
+
 ## [0.3.2] — 2026-06-22 — Commande `ATPOST` (requêtes HTTP/HTTPS POST)
 
 - **`ATPOST`** : symétrique d'`ATGET`, permet d'appeler des **API REST** depuis l'Oric.
