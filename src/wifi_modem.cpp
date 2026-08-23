@@ -39,6 +39,7 @@
 #include "wifi_modem.h"
 #include "types.h"
 #include "globals.h"
+#include "modem_trace.h"
 
 #include "lwip/pbuf.h"
 #include "lwip/tcp.h"
@@ -219,6 +220,17 @@ void loop(void) {
    cdc_task();
 #endif
 
+   mtrace_flush();    // vider la trace de debug (contexte principal only)
+#if MODEM_TRACE
+   {
+      static int mtraceLastState = -1;
+      if( (int)state != mtraceLastState ) {
+         mtrace('S', (uint32_t)state);
+         mtraceLastState = (int)state;
+      }
+   }
+#endif
+
    maybeStopSntp();   // stop SNTP on first sync (avoids handshake hang)
 
    checkForIncomingCall();
@@ -300,6 +312,7 @@ void doAtCmds(char *atCmd) {
 
    trim(atCmd);               // get rid of leading and trailing spaces
    if( atCmd[0] ) {
+      mtrace_str('A', atCmd);  // commande AT recue (contexte principal)
       // is it an AT command?
       if( strncasecmp(atCmd, "AT", 2) ) {
          sendResult(R_ERROR); // nope, time to die

@@ -5,6 +5,39 @@ Voir le document de conception : `../docs/design-proxy-tls-ssh.md`.
 
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/).
 
+## [non publié]
+
+### 2026-08-23 — Trace de debug du firmware modem
+
+**Ajouté** — scaffold de trace de debug (`src/modem_trace.h`), cohérent avec la
+trace ACIA 6551 côté LOCI (même style ring buffer).
+
+- **Canal** : la trace sort sur `printf` = **stdio UART0 (GP0/GP1, 115200)**,
+  jamais sur le CDC modem (`ser_puts(ser0,...)`). Elle ne perturbe donc pas le
+  flux série vers l'Oric. (`pico_enable_stdio_uart(1)` en prod ; le commentaire
+  `# enable usb output` du CMakeLists est inversé par rapport au code.)
+- **Ring buffer** `mtrace_buf` (128 entrées `{tag,val}`) : les callbacks lwIP
+  (`tcpHasConnected`, `tcpClientErr`, `tcpRecv`) tournent en **contexte IRQ**
+  (`pico_cyw43_arch` threadsafe_background). On empile un évènement léger
+  (`mtrace()`, index protégé par `save_and_disable_interrupts()` car deux
+  producteurs : principal + IRQ) et on ne fait le `printf` bloquant que depuis
+  `loop()` via `mtrace_flush()` — évite la **famine CDC** (même classe de bug
+  que startupWait/ATC1/AT$SCAN).
+- **Points de trace** : `A` commande AT reçue (`doAtCmds`), `R` result code
+  (`sendResult`, tracé même en mode quiet), `D`/`L` tentative de connexion
+  TCP/TLS + port (`tcpConnect`), `C` TCP connecté / `X` TCP erreur (callbacks),
+  `S` changement d'état machine (échantillonné dans `loop()`).
+- **`mtrace_str()`** pour les chaînes (commande AT, host) : contexte principal
+  uniquement, vide d'abord le ring pour rester chronologique.
+- Compilation conditionnelle via `#define MODEM_TRACE 1` (mettre `0` pour
+  retirer entièrement la trace du binaire de prod).
+
+Sortie type : `MODEM A ATDT#bbs:992` → `MODEM L 992` → `MODEM C 0` →
+`MODEM R 1` (CONNECT) → `MODEM S 2` (ONLINE).
+
+**Build** : `cmake --build src/build-trace` OK, `wifi_modem.uf2` généré
+(~1,04 Mo), link CXX sans erreur. Runtime non testé sur matériel.
+
 ## [0.3.3] — 2026-06-23 — Correctif descripteur USB (pas de port COM sous Windows)
 
 - **Bug** signalé par Dbug sur le forum defence-force
