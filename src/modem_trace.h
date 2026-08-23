@@ -7,10 +7,14 @@
 /*
  * Trace de debug du firmware modem PicoWiFiModemUSB.
  *
- * IMPORTANT : la sortie part sur la console stdio = UART0 (GP0/GP1, 115200),
- * PAS sur le CDC modem. Elle ne perturbe donc pas le flux serie vers l'Oric.
- * (Rappel : pico_enable_stdio_uart(1) => printf -> UART0 ; ser_puts(ser0,...)
- * -> CDC.)
+ * IMPORTANT : la sortie est ecrite DIRECTEMENT sur l'UART0 materiel
+ * (uart_putc_raw sur GP0/GP1, 115200), volontairement SANS passer par printf.
+ * En effet usb_cdc.c enregistre un driver stdio (cdc_stdio_app) qui route
+ * printf vers le CDC modem (tud_cdc_n_write(0,...)) : c'est ainsi que ATI et
+ * les result codes atteignent l'Oric. Utiliser printf ici polluerait donc le
+ * flux serie vers l'Oric. On contourne stdio et on vise l'UART0 physique, qui
+ * reste un canal de debug pur (le pico-sdk l'a deja initialise a 115200 via
+ * pico_enable_stdio_uart(1)).
  *
  * Deux contextes empilent des evenements :
  *   - contexte principal : loop(), doAtCmds(), sendResult(), tcpConnect()...
@@ -40,8 +44,9 @@
 #define _MODEM_TRACE_H_
 
 #include <stdint.h>
-#include <stdio.h>
+#include <stdio.h>              /* snprintf (formatage vers buffer, pas de sortie) */
 #include "hardware/sync.h"
+#include "hardware/uart.h"
 
 #ifndef MODEM_TRACE
 #define MODEM_TRACE 1
@@ -49,6 +54,7 @@
 
 #if MODEM_TRACE
 
+#define MTRACE_UART uart0          /* console debug GP0/GP1, init par stdio_uart */
 #define MTRACE_SIZE 128            /* puissance de 2 */
 #define MTRACE_MASK (MTRACE_SIZE - 1)
 
@@ -69,8 +75,15 @@ static inline void mtrace(char tag, uint32_t val)
     restore_interrupts(save);
 }
 
+/* Ecriture brute sur l'UART0 debug (jamais sur le CDC modem). */
+static inline void mtrace_uart_puts(const char *s)
+{
+    while (*s)
+        uart_putc_raw(MTRACE_UART, *s++);
+}
+
 /* Consommateur : UNIQUEMENT depuis loop() (contexte principal). Bloquant
- * (printf sur UART) : ne jamais l'appeler en IRQ ni dans un chemin chaud. */
+ * (UART0) : ne jamais l'appeler en IRQ ni dans un chemin chaud. */
 static inline void mtrace_flush(void)
 {
     while (mtrace_tail != mtrace_head)
@@ -80,7 +93,9 @@ static inline void mtrace_flush(void)
          * un operande volatile). */
         char tag = mtrace_buf[mtrace_tail].tag;
         uint32_t val = mtrace_buf[mtrace_tail].val;
-        printf("MODEM %c %lu\r\n", tag, (unsigned long)val);
+        char line[32];
+        snprintf(line, sizeof line, "MODEM %c %lu\r\n", tag, (unsigned long)val);
+        mtrace_uart_puts(line);
         mtrace_tail = (mtrace_tail + 1) & MTRACE_MASK;
     }
 }
@@ -89,8 +104,12 @@ static inline void mtrace_flush(void)
  * Vide d'abord les evenements en attente pour rester chronologique. */
 static inline void mtrace_str(char tag, const char *s)
 {
+    char hdr[10];
     mtrace_flush();
-    printf("MODEM %c %s\r\n", tag, s);
+    snprintf(hdr, sizeof hdr, "MODEM %c ", tag);
+    mtrace_uart_puts(hdr);
+    mtrace_uart_puts(s);
+    mtrace_uart_puts("\r\n");
 }
 
 #else /* MODEM_TRACE == 0 */

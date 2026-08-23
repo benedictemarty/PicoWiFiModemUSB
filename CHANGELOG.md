@@ -12,10 +12,15 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/).
 **Ajouté** — scaffold de trace de debug (`src/modem_trace.h`), cohérent avec la
 trace ACIA 6551 côté LOCI (même style ring buffer).
 
-- **Canal** : la trace sort sur `printf` = **stdio UART0 (GP0/GP1, 115200)**,
-  jamais sur le CDC modem (`ser_puts(ser0,...)`). Elle ne perturbe donc pas le
-  flux série vers l'Oric. (`pico_enable_stdio_uart(1)` en prod ; le commentaire
-  `# enable usb output` du CMakeLists est inversé par rapport au code.)
+- **Canal** : la trace écrit **directement sur l'UART0 matériel**
+  (`uart_putc_raw`, GP0/GP1, 115200), volontairement **sans passer par
+  `printf`**. Piège découvert au **test matériel** : `usb_cdc.c` enregistre un
+  driver stdio (`cdc_stdio_app`) qui route `printf` vers le **CDC modem**
+  (`tud_cdc_n_write(0,...)`) — c'est ainsi qu'`ATI`/les result codes atteignent
+  l'Oric. Une trace via `printf` polluait donc le flux série vers l'Oric
+  (symptôme observé : `MODEM A …` / `MODEM R …` mêlés aux réponses AT sur
+  `/dev/ttyACM0`). En ciblant l'UART0 physique, la trace reste un canal de debug
+  pur. Vérifié : après correctif, `ATI` renvoie un flux CDC propre.
 - **Ring buffer** `mtrace_buf` (128 entrées `{tag,val}`) : les callbacks lwIP
   (`tcpHasConnected`, `tcpClientErr`, `tcpRecv`) tournent en **contexte IRQ**
   (`pico_cyw43_arch` threadsafe_background). On empile un évènement léger
@@ -36,7 +41,13 @@ Sortie type : `MODEM A ATDT#bbs:992` → `MODEM L 992` → `MODEM C 0` →
 `MODEM R 1` (CONNECT) → `MODEM S 2` (ONLINE).
 
 **Build** : `cmake --build src/build-trace` OK, `wifi_modem.uf2` généré
-(~1,04 Mo), link CXX sans erreur. Runtime non testé sur matériel.
+(~1,04 Mo), link CXX sans erreur.
+
+**Validé sur vrai Pico W (2026-08-23)** : flashé via 1200-baud touch. Le modem
+répond normalement (`AT` → `OK`, `ATI` OK, WiFi connecté) et le flux CDC vers
+l'Oric est **propre** (aucune ligne `MODEM …` parasite) une fois la trace
+routée sur l'UART0 physique. La sortie de trace elle-même (sur GP0/GP1) n'a pas
+été relue faute de lecteur UART câblé.
 
 ## [0.3.3] — 2026-06-23 — Correctif descripteur USB (pas de port COM sous Windows)
 
