@@ -207,6 +207,7 @@ err_t tcpClientClose(TCP_CLIENT_T *client) {
 static void tcpClientErr(void *arg, err_t err) {
    TCP_CLIENT_T *client = (TCP_CLIENT_T *)arg;
 
+   mtrace('X', (uint32_t)err);   // callback lwIP (contexte IRQ) -> ring buffer
    if( client ) {
       client->connectFinished = true;
       client->connected = false;
@@ -326,7 +327,8 @@ static err_t tcpRecv(void *arg, struct altcp_pcb *tpcb, struct pbuf *p, err_t er
 
 static err_t tcpHasConnected(void *arg, struct altcp_pcb *tpcb, err_t err) {
    TCP_CLIENT_T *client = (TCP_CLIENT_T*)arg;
-   
+
+   mtrace('C', (uint32_t)err);   // callback lwIP (contexte IRQ) -> ring buffer
    client->connectFinished = true;
    client->connected = err == ERR_OK;
    if( err != ERR_OK ) {
@@ -336,6 +338,8 @@ static err_t tcpHasConnected(void *arg, struct altcp_pcb *tpcb, err_t err) {
 }
 
 TCP_CLIENT_T *tcpConnect(TCP_CLIENT_T *client, const char *host, int portNum, bool secure) {
+   mtrace_str(secure ? 'L' : 'D', host);   // dial (contexte principal)
+   mtrace(secure ? 'L' : 'D', (uint32_t)portNum);
    if( !dnsLookup(host, &client->remoteAddr) ) {
       return NULL;
    } else {

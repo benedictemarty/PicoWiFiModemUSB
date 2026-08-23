@@ -365,6 +365,7 @@ char *connectTimeString(void) {
 // print a result code/string to the serial port
 //
 void sendResult(int resultCode) {
+   mtrace('R', (uint32_t)resultCode);  // trace meme en mode quiet
    if( !settings.quiet ) {             // quiet mode on?
       crlf();                   // no, we're going to display something
       if( !settings.verbose ) {
