@@ -7,6 +7,28 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/).
 
 ## [non publié]
 
+### 2026-08-31 — Doc : `README.md` réaligné sur le code (v0.3.0→0.3.3)
+
+**Documentation** — le tableau de commandes AT et les sections Features / TLS du
+`README.md` étaient restés à la v0.2.x alors que le firmware est en 0.3.3. Mise à
+jour pour refléter le code réel :
+
+- **Ajout au tableau de référence** : `ATPOST` (POST HTTP/HTTPS + en-têtes/corps,
+  API REST), `AT$TIME` (heure UTC / epoch + source de synchro) et `AT$TZ`
+  (décalage horaire d'affichage), qui existaient dans le code (`at_basic.h`,
+  `at_proprietary.h`) mais n'étaient pas documentés.
+- **Correctif d'obsolescence** : la note « there is no on-board clock, so
+  certificate *expiry dates* are not checked » était **fausse depuis la v0.3.0**.
+  Le firmware synchronise l'heure par **SNTP** à la connexion WiFi et **vérifie
+  les dates de validité** des certificats (`certDateFlags`/`dateVerifyCb` dans
+  `tcp_support.h`, actif dès `timeSynced`). Remplacée par une section
+  « Clock and certificate dates ».
+- **Section TLS** : ajout d'un bloc `ATPOST` (prompt en-têtes/ligne vide/corps,
+  fin par `.`, tailles de buffers 768/3072 o) et de la synchro NTP.
+- **Features** et **lignée du fork** : mention d'`ATPOST`, de la synchro NTP et
+  de la vérif. de date des certificats.
+- Aucun changement de code ; `FW_VERSION` reste **0.3.3**.
+
 ### 2026-08-23 — Trace de debug du firmware modem
 
 **Ajouté** — scaffold de trace de debug (`src/modem_trace.h`), cohérent avec la
