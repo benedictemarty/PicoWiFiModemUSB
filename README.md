@@ -40,7 +40,7 @@ Direct ancestry (this fork is at the bottom):
 1. [jsalin/esp8266_modem](https://github.com/jsalin/esp8266_modem) — Jussi Salin's original ESP8266 virtual modem.
 2. [mecparts/RetroWiFiModem](https://github.com/mecparts/RetroWiFiModem) → [mecparts/PicoWiFiModem](https://github.com/mecparts/PicoWiFiModem) — Paul Rickards / mecparts lineage, ported to the Pico.
 3. [sodiumlb/PicoWiFiModemUSB](https://github.com/sodiumlb/PicoWiFiModemUSB) — **direct parent**: native USB-CDC variant for the Pico W, designed to pair with [LOCI](https://github.com/sodiumlb/loci-hardware).
-4. **this fork** ([benedictemarty/PicoWiFiModemUSB](https://github.com/benedictemarty/PicoWiFiModemUSB)) — adds TLS/SSL termination (mbedTLS) and the `ATGET https`, `AT$CA` and `AT$CV` commands.
+4. **this fork** ([benedictemarty/PicoWiFiModemUSB](https://github.com/benedictemarty/PicoWiFiModemUSB)) — adds TLS/SSL termination (mbedTLS), HTTPS `ATGET`/`ATPOST`, NTP time sync with certificate date checks, and the `AT$CA`, `AT$CV`, `AT$TIME` and `AT$TZ` commands.
 
 ```
 jsalin/esp8266_modem
@@ -62,8 +62,12 @@ etc.) are listed under [References](#references).
 - **WiFi** station mode (2.4 GHz) with credentials stored in flash.
 - **TLS-terminated HTTPS**: `ATGET https://…` performs the handshake and returns
   the decrypted page.
+- **HTTP/HTTPS POST** (`ATPOST`) with user-supplied headers and body — lets an
+  8-bit host call modern **REST APIs** (see [TLS / HTTPS](#tls--https)).
 - **Certificate verification** (`AT$CV1`) against a user-provided CA
   (`AT$CA=`) — refused unless a CA is present, so it never fails open.
+- **NTP time sync** on WiFi connection: certificate **validity dates** (not-yet-valid
+  / expired) are checked once the clock is set (`AT$TIME`, `AT$TZ`).
 - On-board flash storage via **LittleFS** (settings + CA), in the area not used
   by the firmware.
 
@@ -159,11 +163,38 @@ AT&W                   persist
 ```
 
 With a CA loaded and `AT$CV1` enabled, a connection whose certificate does not
-chain to that CA (expired, self-signed, unknown root, wrong hostname) is
-**refused**. `AT$CA?` reports the stored CA size; `AT$CA-` deletes it.
+chain to that CA (self-signed, unknown root, wrong hostname) is **refused**.
+`AT$CA?` reports the stored CA size; `AT$CA-` deletes it.
 
-> Note: there is no on-board clock, so certificate *expiry dates* are not
-> checked; trust is established via the CA chain and hostname (SNI).
+### Clock and certificate dates
+
+The RP2040 has no battery-backed clock. On WiFi connection the modem syncs its
+time via **SNTP** (`pool.ntp.org`); once synced, certificate **validity dates**
+are enforced — a not-yet-valid or **expired** certificate is refused during the
+handshake. Before the first sync the clock falls back to the firmware build date
+and dates are *not* rejected (no reliable time). You can inspect or force the
+clock offline:
+
+```
+AT$TIME?              show UTC time and sync source (synced / build-fallback)
+AT$TIME=1750000000    force the clock (UNIX epoch, seconds) when offline
+AT$TZ=+2              set a display timezone offset (cert checks stay in UTC)
+```
+
+### POST requests (REST APIs)
+
+`ATPOST` is the symmetric of `ATGET` for sending data:
+
+```
+ATPOSThttps://httpbin.org/post
+```
+
+After the command the modem prompts for optional **request headers**, then a
+**blank line**, then the **body**, terminated by a line containing only `.`.
+`Content-Length`, `Host` and `Connection: close` are added automatically; the
+response is streamed back over the serial link. `https://` targets reuse the same
+TLS termination (and certificate verification) as `ATGET`. Header buffer 768 B,
+body buffer 3072 B (`ERROR` on overflow).
 
 ## Command reference
 
@@ -184,6 +215,7 @@ ATDS*n* | Calls the host in speed dial slot *n* (0-9).
 ATDT<i>[+=-]host[:port]</i> | Establish a TCP connection to host/IP (default port 23, Telnet). Speed-dial by alias or 7 identical digits. A leading `+`/`=`/`-` overrides the ATNET setting for the call (**+** fake Telnet, **=** real Telnet, **-** no Telnet). Pressing a key before connect aborts.
 ATE?<br>ATE*n* | Command-mode echo. E0 off, E1 on.
 ATGET*http&#58;//host[/page]*<br>ATGET*https&#58;//host[/page]* | Fetch and display a web page, then close. **https** is TLS-terminated by the modem (see [TLS / HTTPS](#tls--https)).
+ATPOST*http&#58;//host[/path]*<br>ATPOST*https&#58;//host[/path]* | POST to an HTTP(S) endpoint. The modem then reads request headers, a blank line and the body, ending with a line containing only `.`; `Content-Length`/`Host`/`Connection: close` are added automatically. For REST APIs. See [TLS / HTTPS](#tls--https).
 ATH | Hang up the current connection.
 ATI | Display network status: build date, WiFi/call state, SSID, RSSI, IP, bytes transferred.
 ATNET?<br>ATNET*n* | Query/change Telnet mode. 0 = off, 1 = real Telnet, 2 = fake Telnet. See note on real vs fake below.
@@ -214,9 +246,11 @@ AT$SCAN | Scan for nearby 2.4 GHz WiFi networks. Lists one access point per line
 AT$SP?<br>AT$SP=*n* | TCP server port to listen on (0 = disabled).
 AT$SSID?<br>AT$SSID=*ssid* | Query/change the SSID (case sensitive, max 32 chars). Set empty to clear.
 AT$SU?<br>AT$SU=*dps* | Data bits (5-8), parity (N/O/E), stop bits (1-2). Default 8N1.
+AT$TIME?<br>AT$TIME=*epoch* | Query the current UTC time and sync source (`synced` via SNTP, or `build-fallback`), or force the clock to a UNIX epoch (seconds) when offline. Drives certificate date checks.
 AT$TTL?<br>AT$TTL=*telnet location* | Telnet SEND-LOCATION value (default "Computer Room").
 AT$TTS?<br>AT$TTS=*WxH* | Telnet NAWS window size (default 80x24).
 AT$TTY?<br>AT$TTY=*terminal type* | Telnet TERMINAL-TYPE value (default "ansi").
+AT$TZ?<br>AT$TZ=*±H[:MM]* | Query/set the display timezone offset vs UTC (e.g. `+2`, `-8`, `+05:30`, range ±14:00). Affects `AT$TIME?` display only; certificate checks stay in UTC. Persisted with `AT&W`.
 AT$W?<br>AT$W=*n* | Startup wait. $W=0 no wait, $W=1 wait for Enter at startup.
 
 **Real vs fake Telnet** — with *real* Telnet a CR sent by the modem is followed
