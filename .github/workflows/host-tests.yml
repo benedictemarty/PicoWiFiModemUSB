@@ -1,0 +1,24 @@
+name: host-tests
+
+# Compile-and-run the hardware-free regression tests on every push/PR.
+# These pin two firmware invariants without any Pico:
+#   - USB configuration descriptor consistency (Windows COM-port fix, v0.3.3)
+#   - AT&W flash writes always run with interrupts masked (NVRAM deadlock fix)
+on:
+  push:
+    branches: ['**']
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  host-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install toolchain
+        run: sudo apt-get update && sudo apt-get install -y gcc
+
+      - name: Run host tests
+        run: ./validation/host-tests/run.sh

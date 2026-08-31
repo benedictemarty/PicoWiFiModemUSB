@@ -7,6 +7,16 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/).
 
 ## [non publié]
 
+### 2026-08-31 — CI : host-tests automatisés (GitHub Actions)
+
+**Intégration continue**
+- Nouveau workflow `.github/workflows/host-tests.yml` : exécute
+  `validation/host-tests/run.sh` à **chaque push / PR** (Ubuntu + gcc). Verrouille
+  automatiquement les deux invariants sans matériel — cohérence du descripteur
+  USB (fix COM Windows v0.3.3) et **écritures flash `AT&W` toujours IRQ masquées**
+  (fix deadlock NVRAM). Une régression casse désormais le build au lieu de passer
+  inaperçue.
+
 ### 2026-08-31 — Fix : `AT&W` robustifié (hang NVRAM signalé par ibisum)
 
 **Contexte** — sur le forum defence-force ([t=2894](https://forum.defence-force.org/viewtopic.php?t=2894&start=30),
