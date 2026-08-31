@@ -30,10 +30,11 @@ verrouille par un test**.
 - `FW_VERSION` inchangé (**0.3.3**) — correctif de robustesse, pas de nouvelle
   fonctionnalité utilisateur.
 
-**validation/**
-- Nouveau **test hôte** `host-tests/test_lfs_atw.c` (+ stubs `stubs-lfs/`,
-  intégré à `run.sh`) : compile le vrai `src/lfs.c` **et** la vraie LittleFS
-  contre une flash émulée en RAM, puis vérifie sans matériel :
+**validation/** (désormais **dans le dépôt firmware** : `validation/host-tests/`,
+déplacé depuis le workspace pour que les tests soient versionnés avec le code)
+- Nouveau **test hôte** `validation/host-tests/test_lfs_atw.c` (+ stubs
+  `stubs-lfs/`, intégré à `run.sh`) : compile le vrai `src/lfs.c` **et** la vraie
+  LittleFS contre une flash émulée en RAM, puis vérifie sans matériel :
   1. **Invariant AT&W** — *toute* op flash (13 lors d'un `writeSettings`) tourne
      interruptions masquées → épingle le fix anti-deadlock (une régression
      ferait échouer le test) ;
