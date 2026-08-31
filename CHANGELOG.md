@@ -7,6 +7,39 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/).
 
 ## [non publié]
 
+### 2026-08-31 — Fix : `AT&W` robustifié (hang NVRAM signalé par ibisum)
+
+**Contexte** — sur le forum defence-force ([t=2894](https://forum.defence-force.org/viewtopic.php?t=2894&start=30),
+rapporté par *ibisum*, 30 juin 2026) : « `AT&W` hangs the PicoW and requires a
+forced reset ». Cause racine : pendant l'écriture flash (`flash_range_program`/
+`flash_range_erase`), le XIP est indisponible ; l'IRQ WiFi cyw43 (mode
+`threadsafe_background`) s'exécutant depuis la flash fige le chip. Le garde IRQ
+(`save_and_disable_interrupts`/`restore_interrupts`) autour des ops flash était
+déjà présent depuis la v0.3.3 (`src/lfs.c`) ; ce sprint le **robustifie et le
+verrouille par un test**.
+
+**Firmware**
+- `src/at_extended.h` (`updateNvram`) — **honore désormais le code retour de
+  `writeSettings()`** : renvoie `ERROR` si l'écriture NVRAM échoue, au lieu d'un
+  `OK` mensonger (évitait une perte de config silencieuse). Le `OK` n'est plus
+  émis que si l'écriture a réussi.
+- `src/lfs.c` — commentaire du garde IRQ **explicité** : précondition
+  mono-cœur + `pico_cyw43_arch_lwip_threadsafe_background`, et marche à suivre
+  (`flash_safe_execute` + `PICO_FLASH_ASSUME_CORE1_SAFE`) si un 2ᵉ cœur est
+  ajouté un jour. Pas de changement fonctionnel.
+- `FW_VERSION` inchangé (**0.3.3**) — correctif de robustesse, pas de nouvelle
+  fonctionnalité utilisateur.
+
+**validation/**
+- Nouveau **test hôte** `host-tests/test_lfs_atw.c` (+ stubs `stubs-lfs/`,
+  intégré à `run.sh`) : compile le vrai `src/lfs.c` **et** la vraie LittleFS
+  contre une flash émulée en RAM, puis vérifie sans matériel :
+  1. **Invariant AT&W** — *toute* op flash (13 lors d'un `writeSettings`) tourne
+     interruptions masquées → épingle le fix anti-deadlock (une régression
+     ferait échouer le test) ;
+  2. round-trip `writeSettings`/`readSettings` octet-pour-octet ;
+  3. équilibre `save_and_disable_interrupts`/`restore_interrupts`.
+
 ### 2026-08-31 — Doc : `README.md` réaligné sur le code (v0.3.0→0.3.3)
 
 **Documentation** — le tableau de commandes AT et les sections Features / TLS du
