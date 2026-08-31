@@ -202,7 +202,16 @@ char *displayAllSettings(char* atCmd) {
 // AT&W: update NVRAM from current settings
 //
 char *updateNvram(char *atCmd) {
-   writeSettings(&settings);
+   // AT&W — persist the running settings to NVRAM (LittleFS in flash).
+   // The flash write itself is deadlock-safe (interrupts are disabled around
+   // every erase/program in lfs.c, so the cyw43 background IRQ can't run from
+   // XIP while flash is busy — see the AT&W hang reported on the forum).
+   // Honour the return value: if the write failed, report ERROR instead of a
+   // misleading OK, otherwise the user believes a broken config was saved.
+   if( !writeSettings(&settings) ) {
+      sendResult(R_ERROR);
+      return atCmd;
+   }
    if( !atCmd[0] ) {
       sendResult(R_OK);
    }

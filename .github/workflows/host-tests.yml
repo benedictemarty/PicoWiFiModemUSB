@@ -1,0 +1,30 @@
+name: host-tests
+
+# Compile-and-run the hardware-free regression tests on every push/PR.
+# These pin two firmware invariants without any Pico:
+#   - USB configuration descriptor consistency (Windows COM-port fix, v0.3.3)
+#   - AT&W flash writes always run with interrupts masked (NVRAM deadlock fix)
+on:
+  push:
+    branches: ['**']
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  host-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # The host tests compile against the real TinyUSB and LittleFS headers/
+      # sources. Fetch ONLY those two submodules (shallow) — not the huge
+      # pico-sdk / pico-extras, which the tests don't need.
+      - name: Fetch required submodules
+        run: git submodule update --init --depth 1 src/tinyusb src/littlefs
+
+      - name: Install toolchain
+        run: sudo apt-get update && sudo apt-get install -y gcc
+
+      - name: Run host tests
+        run: ./validation/host-tests/run.sh

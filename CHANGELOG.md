@@ -5,6 +5,116 @@ Voir le document de conception : `../docs/design-proxy-tls-ssh.md`.
 
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/).
 
+## [non publié]
+
+### 2026-08-31 — CI : host-tests automatisés (GitHub Actions)
+
+**Intégration continue**
+- Nouveau workflow `.github/workflows/host-tests.yml` : exécute
+  `validation/host-tests/run.sh` à **chaque push / PR** (Ubuntu + gcc). Verrouille
+  automatiquement les deux invariants sans matériel — cohérence du descripteur
+  USB (fix COM Windows v0.3.3) et **écritures flash `AT&W` toujours IRQ masquées**
+  (fix deadlock NVRAM). Une régression casse désormais le build au lieu de passer
+  inaperçue.
+
+### 2026-08-31 — Fix : `AT&W` robustifié (hang NVRAM signalé par ibisum)
+
+**Contexte** — sur le forum defence-force ([t=2894](https://forum.defence-force.org/viewtopic.php?t=2894&start=30),
+rapporté par *ibisum*, 30 juin 2026) : « `AT&W` hangs the PicoW and requires a
+forced reset ». Cause racine : pendant l'écriture flash (`flash_range_program`/
+`flash_range_erase`), le XIP est indisponible ; l'IRQ WiFi cyw43 (mode
+`threadsafe_background`) s'exécutant depuis la flash fige le chip. Le garde IRQ
+(`save_and_disable_interrupts`/`restore_interrupts`) autour des ops flash était
+déjà présent depuis la v0.3.3 (`src/lfs.c`) ; ce sprint le **robustifie et le
+verrouille par un test**.
+
+**Firmware**
+- `src/at_extended.h` (`updateNvram`) — **honore désormais le code retour de
+  `writeSettings()`** : renvoie `ERROR` si l'écriture NVRAM échoue, au lieu d'un
+  `OK` mensonger (évitait une perte de config silencieuse). Le `OK` n'est plus
+  émis que si l'écriture a réussi.
+- `src/lfs.c` — commentaire du garde IRQ **explicité** : précondition
+  mono-cœur + `pico_cyw43_arch_lwip_threadsafe_background`, et marche à suivre
+  (`flash_safe_execute` + `PICO_FLASH_ASSUME_CORE1_SAFE`) si un 2ᵉ cœur est
+  ajouté un jour. Pas de changement fonctionnel.
+- `FW_VERSION` inchangé (**0.3.3**) — correctif de robustesse, pas de nouvelle
+  fonctionnalité utilisateur.
+
+**validation/** (désormais **dans le dépôt firmware** : `validation/host-tests/`,
+déplacé depuis le workspace pour que les tests soient versionnés avec le code)
+- Nouveau **test hôte** `validation/host-tests/test_lfs_atw.c` (+ stubs
+  `stubs-lfs/`, intégré à `run.sh`) : compile le vrai `src/lfs.c` **et** la vraie
+  LittleFS contre une flash émulée en RAM, puis vérifie sans matériel :
+  1. **Invariant AT&W** — *toute* op flash (13 lors d'un `writeSettings`) tourne
+     interruptions masquées → épingle le fix anti-deadlock (une régression
+     ferait échouer le test) ;
+  2. round-trip `writeSettings`/`readSettings` octet-pour-octet ;
+  3. équilibre `save_and_disable_interrupts`/`restore_interrupts`.
+
+### 2026-08-31 — Doc : `README.md` réaligné sur le code (v0.3.0→0.3.3)
+
+**Documentation** — le tableau de commandes AT et les sections Features / TLS du
+`README.md` étaient restés à la v0.2.x alors que le firmware est en 0.3.3. Mise à
+jour pour refléter le code réel :
+
+- **Ajout au tableau de référence** : `ATPOST` (POST HTTP/HTTPS + en-têtes/corps,
+  API REST), `AT$TIME` (heure UTC / epoch + source de synchro) et `AT$TZ`
+  (décalage horaire d'affichage), qui existaient dans le code (`at_basic.h`,
+  `at_proprietary.h`) mais n'étaient pas documentés.
+- **Correctif d'obsolescence** : la note « there is no on-board clock, so
+  certificate *expiry dates* are not checked » était **fausse depuis la v0.3.0**.
+  Le firmware synchronise l'heure par **SNTP** à la connexion WiFi et **vérifie
+  les dates de validité** des certificats (`certDateFlags`/`dateVerifyCb` dans
+  `tcp_support.h`, actif dès `timeSynced`). Remplacée par une section
+  « Clock and certificate dates ».
+- **Section TLS** : ajout d'un bloc `ATPOST` (prompt en-têtes/ligne vide/corps,
+  fin par `.`, tailles de buffers 768/3072 o) et de la synchro NTP.
+- **Features** et **lignée du fork** : mention d'`ATPOST`, de la synchro NTP et
+  de la vérif. de date des certificats.
+- Aucun changement de code ; `FW_VERSION` reste **0.3.3**.
+
+### 2026-08-23 — Trace de debug du firmware modem
+
+**Ajouté** — scaffold de trace de debug (`src/modem_trace.h`), cohérent avec la
+trace ACIA 6551 côté LOCI (même style ring buffer).
+
+- **Canal** : la trace écrit **directement sur l'UART0 matériel**
+  (`uart_putc_raw`, GP0/GP1, 115200), volontairement **sans passer par
+  `printf`**. Piège découvert au **test matériel** : `usb_cdc.c` enregistre un
+  driver stdio (`cdc_stdio_app`) qui route `printf` vers le **CDC modem**
+  (`tud_cdc_n_write(0,...)`) — c'est ainsi qu'`ATI`/les result codes atteignent
+  l'Oric. Une trace via `printf` polluait donc le flux série vers l'Oric
+  (symptôme observé : `MODEM A …` / `MODEM R …` mêlés aux réponses AT sur
+  `/dev/ttyACM0`). En ciblant l'UART0 physique, la trace reste un canal de debug
+  pur. Vérifié : après correctif, `ATI` renvoie un flux CDC propre.
+- **Ring buffer** `mtrace_buf` (128 entrées `{tag,val}`) : les callbacks lwIP
+  (`tcpHasConnected`, `tcpClientErr`, `tcpRecv`) tournent en **contexte IRQ**
+  (`pico_cyw43_arch` threadsafe_background). On empile un évènement léger
+  (`mtrace()`, index protégé par `save_and_disable_interrupts()` car deux
+  producteurs : principal + IRQ) et on ne fait le `printf` bloquant que depuis
+  `loop()` via `mtrace_flush()` — évite la **famine CDC** (même classe de bug
+  que startupWait/ATC1/AT$SCAN).
+- **Points de trace** : `A` commande AT reçue (`doAtCmds`), `R` result code
+  (`sendResult`, tracé même en mode quiet), `D`/`L` tentative de connexion
+  TCP/TLS + port (`tcpConnect`), `C` TCP connecté / `X` TCP erreur (callbacks),
+  `S` changement d'état machine (échantillonné dans `loop()`).
+- **`mtrace_str()`** pour les chaînes (commande AT, host) : contexte principal
+  uniquement, vide d'abord le ring pour rester chronologique.
+- Compilation conditionnelle via `#define MODEM_TRACE 1` (mettre `0` pour
+  retirer entièrement la trace du binaire de prod).
+
+Sortie type : `MODEM A ATDT#bbs:992` → `MODEM L 992` → `MODEM C 0` →
+`MODEM R 1` (CONNECT) → `MODEM S 2` (ONLINE).
+
+**Build** : `cmake --build src/build-trace` OK, `wifi_modem.uf2` généré
+(~1,04 Mo), link CXX sans erreur.
+
+**Validé sur vrai Pico W (2026-08-23)** : flashé via 1200-baud touch. Le modem
+répond normalement (`AT` → `OK`, `ATI` OK, WiFi connecté) et le flux CDC vers
+l'Oric est **propre** (aucune ligne `MODEM …` parasite) une fois la trace
+routée sur l'UART0 physique. La sortie de trace elle-même (sur GP0/GP1) n'a pas
+été relue faute de lecteur UART câblé.
+
 ## [0.3.3] — 2026-06-23 — Correctif descripteur USB (pas de port COM sous Windows)
 
 - **Bug** signalé par Dbug sur le forum defence-force

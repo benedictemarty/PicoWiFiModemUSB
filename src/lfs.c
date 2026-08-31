@@ -43,7 +43,14 @@ static int lfs_prog(const struct lfs_config *c, lfs_block_t block,
                           off;
     // Disable interrupts during the flash op: while flash is being programmed
     // XIP is unavailable, so any ISR executing from flash (e.g. the cyw43
-    // background WiFi IRQ) would hang the chip. See AT&W deadlock.
+    // background WiFi IRQ) would hang the chip. This is the AT&W deadlock.
+    //
+    // Disabling interrupts on the current core is SUFFICIENT here only because
+    // this firmware is single-core and the WiFi stack runs in
+    // pico_cyw43_arch_lwip_threadsafe_background (its worker fires from an IRQ
+    // on core0). If a second core is ever launched (pico_multicore), core1
+    // could still execute from XIP during the write — switch to the SDK's
+    // flash_safe_execute() (with PICO_FLASH_ASSUME_CORE1_SAFE) at that point.
     uint32_t ints = save_and_disable_interrupts();
     flash_range_program(flash_offs, (const uint8_t*)buffer, size);
     restore_interrupts(ints);
