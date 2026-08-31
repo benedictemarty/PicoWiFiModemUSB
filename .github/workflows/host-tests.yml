@@ -17,6 +17,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # The host tests compile against the real TinyUSB and LittleFS headers/
+      # sources. Fetch ONLY those two submodules (shallow) — not the huge
+      # pico-sdk / pico-extras, which the tests don't need.
+      - name: Fetch required submodules
+        run: git submodule update --init --depth 1 src/tinyusb src/littlefs
+
       - name: Install toolchain
         run: sudo apt-get update && sudo apt-get install -y gcc
 
