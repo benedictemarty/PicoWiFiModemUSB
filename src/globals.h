@@ -41,3 +41,9 @@
 #endif
 
 #endif
+
+// ATDISKWR : plafond d'une tranche binaire et silence toléré pendant sa
+// réception. 8192 couvre la piste de 6400 octets du webdisk LOCI avec de la
+// marge, sans immobiliser de tampon (le corps est streamé, pas bufferisé).
+#define DISKWR_MAX_BYTES 8192u
+#define DISKWR_IDLE_MS   3000u

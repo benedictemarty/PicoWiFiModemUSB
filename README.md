@@ -183,6 +183,14 @@ AT$TZ=+2              set a display timezone offset (cert checks stay in UTC)
 
 ### POST requests (REST APIs)
 
+`ATDISKWR<url>?offset=<o>&len=<n>` writes a **binary** slice: the `<n>` bytes
+following the command line are read **raw** from the serial link — no line
+handling, no terminator, no escaping — and streamed as the body of a `PUT`. The
+modem answers `OK` (HTTP 2xx) or `ERROR`. Use it instead of `ATPOST` whenever the
+payload is not text: `ATPOST` is a line channel and **drops CR**, joins body
+lines with LF, stops on a lone `.`, and caps the body at 3 kB. The query string is
+forwarded untouched, so the server's own `offset=` places the slice.
+
 `ATPOST` is the symmetric of `ATGET` for sending data:
 
 ```

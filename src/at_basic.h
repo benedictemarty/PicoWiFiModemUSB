@@ -410,6 +410,114 @@ char *httpPost(char *atCmd) {
    return atCmd;
 }
 
+
+//
+// ATDISKWR<url>?offset=<o>&len=<n>  — write a BINARY slice to an HTTP resource
+//
+// The <n> bytes that follow the command line are read RAW from the serial link —
+// no line handling, no terminator, no escaping — and streamed to the server as
+// the body of a PUT. The modem answers OK (HTTP 2xx) or ERROR.
+//
+// WHY THIS EXISTS, when ATPOST already does POST: ATPOST is a LINE channel. It
+// drops CR (`if( c == '\r' ) continue;` in httpPost), joins body lines with LF,
+// stops on a lone '.', and caps the body at 3 kB. Measured 2026-09-10: six bytes
+// 00 0D 0A 1A FF 41 came back as five, 00 0A 1A FF 41. Binary payloads — a disk
+// track, a saved program — cannot survive that. This command is the byte-exact
+// counterpart, and the one LOCI's webdisk (oric/dsk_web.c) already expects.
+//
+// Length is known up front, so the body is STREAMED: no buffer the size of a
+// track is held in RAM (a track is 6400 bytes, the whole point of the command).
+//
+char *diskWrite(char *atCmd) {
+   char *host, *path, *port, *scheme, *query;
+   int portNum;
+   bool secure = false;
+   uint32_t len = 0;
+
+   if( (scheme = strstr(atCmd, "https://")) != NULL ) {
+      secure = true; host = scheme + 8; portNum = HTTPS_PORT;
+   } else if( (scheme = strstr(atCmd, "http://")) != NULL ) {
+      host = scheme + 7; portNum = HTTP_PORT;
+   } else {
+      sendResult(R_ERROR); return atCmd;
+   }
+   path = strchr(host, '/'); if( path ) { *path = NUL; ++path; }
+   port = strchr(host, ':'); if( port ) { portNum = atoi(port + 1); *port = NUL; }
+   if( !path ) { sendResult(R_ERROR); return atCmd; }
+
+   // len= drives how many raw bytes to read. The query is forwarded to the server
+   // untouched: offset= is what it uses to place the slice, and it ignores len=.
+   if( (query = strstr(path, "len=")) != NULL ) {
+      len = (uint32_t)strtoul(query + 4, NULL, 10);
+   }
+   if( !len || len > DISKWR_MAX_BYTES ) { sendResult(R_ERROR); return atCmd; }
+
+   // Connect BEFORE reading the payload: a refused connection must not leave the
+   // caller's bytes half-consumed on the wire.
+   tcpClient = tcpConnect(&tcpClient0, host, portNum, secure);
+   if( !tcpClient ) {
+      sendResult(R_NO_CARRIER);
+      ser_set(DCD, !ACTIVE);
+      atCmd[0] = NUL;
+      return atCmd;
+   }
+
+   bytesOut += tcpWriteStr(tcpClient, "PUT /");
+   bytesOut += tcpWriteStr(tcpClient, path);
+   bytesOut += tcpWriteStr(tcpClient, " HTTP/1.1\r\nHost: ");
+   bytesOut += tcpWriteStr(tcpClient, host);
+   char clh[80];
+   snprintf(clh, sizeof clh,
+            "\r\nContent-Type: application/octet-stream\r\n"
+            "Content-Length: %u\r\nConnection: close\r\n\r\n", (unsigned)len);
+   bytesOut += tcpWriteStr(tcpClient, clh);
+
+   // Stream the payload: read raw bytes, forward them by blocks. Bounded by a
+   // watchdog on SILENCE (not on total time): a slow sender must not be cut off,
+   // but a sender that dies must not hang the modem forever.
+   uint8_t blk[256];
+   uint32_t got = 0;
+   uint32_t lastByte = millis();
+   while( got < len ) {
+#ifndef WOKWI_BUILD
+      tud_task();
+      cdc_task();
+#endif
+      if( !ser_is_readable(ser0) ) {
+         if( millis() - lastByte > DISKWR_IDLE_MS ) break;   // sender gone
+         continue;
+      }
+      uint16_t n = 0;
+      while( n < sizeof(blk) && got + n < len && ser_is_readable(ser0) ) {
+         blk[n++] = (uint8_t)ser_getc(ser0);
+      }
+      if( n ) {
+         bytesOut += tcpWriteBuf(tcpClient, blk, n);
+         got += n;
+         lastByte = millis();
+      }
+   }
+   if( got < len ) {                   // truncated: do NOT report success
+      tcpClientClose(tcpClient);
+      sendResult(R_ERROR);
+      atCmd[0] = NUL;
+      return atCmd;
+   }
+
+   // Read the status line and report OK only on 2xx. The 6502 side (dsk_web.c)
+   // scans for OK/ERROR, so no HTTP is relayed to it.
+   char  line[64];
+   uint16_t ll = tcpReadBytesUntil(tcpClient, '\n', line, sizeof(line) - 1);
+   line[ll] = NUL;
+   int code = 0;
+   char *sp = strchr(line, ' ');
+   if( sp ) code = atoi(sp + 1);
+   tcpClientClose(tcpClient);
+   sendResult( (code >= 200 && code < 300) ? R_OK : R_ERROR );
+   atCmd[0] = NUL;
+   return atCmd;
+}
+
 //
 // ATH go offline (if connected to a host)
 //
@@ -438,6 +546,7 @@ const char helpStr05[] = "Speed dial....: ATDSn";
 const char helpStr06[] = "Dial host.....: ATDThost[:port]";
 const char helpStr07[] = "Command echo..: ATEn";
 const char helpStr08[] = "HTTP get......: ATGEThttp://host[/page]";
+const char helpStrDiskWr[] = "Binary PUT....: ATDISKWRurl?offset=&len=";
 const char helpStr09[] = "Hang up.......: ATH";
 const char helpStr10[] = "Network info..: ATI";
 const char helpStr11[] = "Handle Telnet.: ATNETn";
@@ -473,7 +582,8 @@ const char helpStr40[] = "e.g. ATQ?, AT&K?, AT$SSID?";
 
 const char* const helpStrs[] = {
    helpStr01, helpStr02, helpStr03, helpStr04, helpStr05, helpStr06,
-   helpStr07, helpStr08, helpStr09, helpStr10, helpStr11, helpStr12,
+   helpStr07, helpStr08, helpStrDiskWr, helpStr09, helpStr10, helpStr11,
+   helpStr12,
    helpStr13, helpStr14, helpStr15, helpStr16, helpStr17, helpStr18,
    helpStr19, helpStr20, helpStr21, helpStr22, helpStr23, helpStr24,
    helpStr25, helpStr26, helpStr27, helpStr28, helpStr29, helpStr30,
@@ -487,14 +597,18 @@ char *showHelp(char *atCmd) {
 
    PagedOut("AT Command Summary:", true);
    if( settings.width >= 80 ) {
-      // dual columns
-      for( int i=0; i<NUM_HELP_STRS/2; ++i ) {
+      // dual columns. The split ROUNDS UP so an odd number of entries still shows
+      // them all: with NUM_HELP_STRS/2 the last one fell off the list, silently,
+      // as soon as the count became odd.
+      const int half = (NUM_HELP_STRS + 1) / 2;
+      for( int i=0; i<half; ++i ) {
+         const char *right = (i + half < (int)NUM_HELP_STRS) ? helpStrs[i + half] : "";
          snprintf(
             helpLine,
             sizeof helpLine,
             "%-40s%s",
             helpStrs[i],
-            helpStrs[i+NUM_HELP_STRS/2]);
+            right);
          if( PagedOut(helpLine) ) {
             break;            // user responded with ^C, quit
          }

@@ -7,6 +7,47 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/).
 
 ## [non publié]
 
+### 2026-09-10 — `ATDISKWR` : écriture BINAIRE octet-exacte (PUT), et l'aide ne perd plus sa dernière ligne
+
+**`ATDISKWR<url>?offset=<o>&len=<n>`** — les `<n>` octets qui suivent la ligne de commande sont
+lus **bruts** sur le lien série (aucun traitement de ligne, aucun terminateur, aucun
+échappement) et **streamés** dans le corps d'un `PUT`. Le modem répond `OK` (HTTP 2xx) ou
+`ERROR`.
+
+**Pourquoi, alors qu'`ATPOST` fait déjà du POST** : `ATPOST` est un canal **ligne**. Mesuré le
+2026-09-10 contre `httpbin.org/post` — six octets `00 0D 0A 1A FF 41` reviennent en **cinq**,
+`00 0A 1A FF 41` : le `0x0D` est supprimé (`if( c == '\r' ) continue;` dans `httpPost`), les
+lignes du corps sont rejointes par `LF`, un `.` isolé termine, et le corps plafonne à 3 Ko. Une
+charge binaire — piste de disque, programme sauvegardé — ne survit pas à ça. `ATDISKWR` est la
+contrepartie octet-exacte.
+
+Détails d'implémentation :
+- **corps streamé**, pas bufferisé : la longueur étant connue d'avance, aucun tampon de la
+  taille d'une piste n'est immobilisé (6400 octets, tout l'intérêt de la commande) ;
+- **connexion établie AVANT** de lire la charge : un refus ne laisse pas les octets de
+  l'appelant à moitié consommés sur le fil ;
+- chien de garde sur le **silence** (3 s) et non sur la durée totale : un émetteur lent n'est
+  pas coupé, un émetteur mort ne bloque pas le modem ;
+- **charge tronquée ⇒ `ERROR`**, jamais `OK` ;
+- la **query est transmise telle quelle** au serveur : c'est son `offset=` qui place la tranche
+  (`len=` lui est inutile, il l'ignore) ;
+- plafond `DISKWR_MAX_BYTES` = 8192 (couvre la piste de 6400 avec de la marge).
+
+**Le dispatch impose l'ordre** : `ATDISKWR` doit être testé **avant** la branche de numérotation
+`D`, qui accepte `D` suivi de `T`, `P` ou `I` — sans quoi « DISKWR… » est pris pour un dial
+(`ATDI` + « SKWR… »). C'est exactement ce qui rendait la commande inatteignable : côté LOCI,
+`ATDISKRD` répondait « DIALLING SKRDhttp:0 » puis `NO CARRIER`.
+
+**Corrigé au passage** — `ATHELP` en 80 colonnes perdait **silencieusement sa dernière ligne**
+dès que le nombre d'entrées devenait impair : l'affichage deux colonnes itérait sur
+`NUM_HELP_STRS/2`. La division **arrondit maintenant vers le haut** et la colonne de droite
+peut être vide. Ajouter la ligne d'aide d'`ATDISKWR` (41ᵉ entrée) aurait déclenché ce bug.
+
+**Consommateur** : LOCI (`firmware/src/mia/oric/dsk_web.c`) attendait déjà cette commande et
+cette réponse — le webdisk pourra donc écrire sans modification côté LOCI. **Non testé sur
+matériel** : le dongle doit être reflashé (BOOTSEL), et l'essai de bout en bout suppose en outre
+que le serveur webdisk soit joignable depuis le dongle.
+
 ### 2026-08-31 — CI : host-tests automatisés (GitHub Actions)
 
 **Intégration continue**

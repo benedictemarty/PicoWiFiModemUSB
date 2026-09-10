@@ -359,6 +359,13 @@ void doAtCmds(char *atCmd) {
                } else if( !strncasecmp(atCmd, "C", 1) ) {
                   // connect/disconnect to WiFi
                   atCmd = wifiConnection(atCmd + 1);
+               } else if( !strncasecmp(atCmd, "DISKWR", 6) ) {
+                  // write a BINARY slice to an HTTP resource (raw body follows).
+                  // MUST be tested before the "D" dial branch below: that branch
+                  // accepts D followed by T, P or I, so "DISKWR..." would be taken
+                  // for a dial ("ATDI" + "SKWR...") — which is exactly what used to
+                  // happen and made this command unreachable.
+                  atCmd = diskWrite(atCmd + 6);
                } else if( !strncasecmp(atCmd, "D", 1) && len > 2 && strchr("TPI", toupper(atCmd[1])) ) {
                   // dial a number
                   atCmd = dialNumber(atCmd + 2);
