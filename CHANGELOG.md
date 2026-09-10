@@ -39,6 +39,19 @@ lecture binaire (une piste de disque, un programme) via ce firmware. Il n'avait
 jamais été vu parce que les vérifications portaient sur la taille reçue, pas sur
 le contenu.
 
+**✅ VALIDÉ SUR MATÉRIEL** (build `Sep 10 2026 10:56:27`, dongle reflashé, serveur
+webdisk réel sur le réseau, **`ATNET? = 1`** donc Telnet actif et contourné par le
+firmware) :
+
+| Sens | Résultat |
+|---|---|
+| Lecture `ATGET<url>?offset=256&len=32` | `206`, **32 octets identiques** à l'image disque, `FF 00` inclus |
+| Écriture `ATDISKWR<url>?offset=1024&len=8` | `200` du serveur, et dans le fichier : `00 0D 0A 1A FF 2E 80 41` — **octet pour octet** |
+
+La charge d'écriture contenait précisément les octets qui échouaient auparavant :
+`0x00`, `0x0D`, `0x0A`, `0x1A`, `0xFF` et un `.`. Chaîne éprouvée de bout en bout :
+Oric → LOCI → USB CDC → dongle → WiFi → serveur.
+
 ### 2026-09-10 — `ATDISKWR` : écriture BINAIRE octet-exacte (PUT), et l'aide ne perd plus sa dernière ligne
 
 **`ATDISKWR<url>?offset=<o>&len=<n>`** — les `<n>` octets qui suivent la ligne de commande sont
