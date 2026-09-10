@@ -295,6 +295,14 @@ char *httpGet(char *atCmd) {
    printf(" from port %u of host %s...\r\n", portNum, host);
 #endif
    // Establish connection (TLS-terminated when the URL scheme is https)
+   /* HTTP n'est PAS du Telnet. Sans cette ligne la session hérite de
+    * `settings.telnet` et le relais corrompt le binaire : à la réception un `IAC`
+    * (0xFF) est interprété AVEC l'octet suivant, à l'émission il est doublé et un
+    * `CR` se voit suivi d'un `NUL` (`support.h`). Mesuré le 2026-09-10 : une
+    * tranche de 32 octets contenant `FF 00` revenait à 30 octets, ces deux-là
+    * avalés. `sessionTelnetType` n'est sinon fixé qu'au démarrage et dans
+    * `dialNumber`, si bien qu'`ATNET0` seul ne suffisait pas. */
+   sessionTelnetType = NO_TELNET;
    tcpClient = tcpConnect(&tcpClient0, host, portNum, secure);
    if( !tcpClient ) {
       sendResult(R_NO_CARRIER);
@@ -382,6 +390,7 @@ char *httpPost(char *atCmd) {
    }
    if( overflow ) { sendResult(R_ERROR); atCmd[0] = NUL; return atCmd; }
 
+   sessionTelnetType = NO_TELNET;      /* HTTP n'est pas du Telnet, cf. httpGet */
    tcpClient = tcpConnect(&tcpClient0, host, portNum, secure);
    if( !tcpClient ) {
       sendResult(R_NO_CARRIER);
@@ -461,6 +470,7 @@ char *diskWrite(char *atCmd) {
 
    // Connect BEFORE reading the payload: a refused connection must not leave the
    // caller's bytes half-consumed on the wire.
+   sessionTelnetType = NO_TELNET;      /* byte-exact: no IAC doubling, no CR NUL */
    tcpClient = tcpConnect(&tcpClient0, host, portNum, secure);
    if( !tcpClient ) {
       sendResult(R_NO_CARRIER);
@@ -473,10 +483,20 @@ char *diskWrite(char *atCmd) {
    bytesOut += tcpWriteStr(tcpClient, path);
    bytesOut += tcpWriteStr(tcpClient, " HTTP/1.1\r\nHost: ");
    bytesOut += tcpWriteStr(tcpClient, host);
-   char clh[80];
-   snprintf(clh, sizeof clh,
+   /* 128 et non 80 : la chaîne fait 82 octets pour un `len` d'un chiffre, et
+    * `snprintf` TRONQUAIT silencieusement le `\r\n\r\n` final. La requête n'avait
+    * alors pas de fin d'en-têtes — le serveur attendait la suite sans jamais
+    * répondre, et un load balancer renvoyait 400. Vérifié le 2026-09-10. */
+   char clh[128];
+   int hn = snprintf(clh, sizeof clh,
             "\r\nContent-Type: application/octet-stream\r\n"
             "Content-Length: %u\r\nConnection: close\r\n\r\n", (unsigned)len);
+   if( hn <= 0 || hn >= (int)sizeof clh ) {   // jamais silencieux : on échoue
+      tcpClientClose(tcpClient);
+      sendResult(R_ERROR);
+      atCmd[0] = NUL;
+      return atCmd;
+   }
    bytesOut += tcpWriteStr(tcpClient, clh);
 
    // Stream the payload: read raw bytes, forward them by blocks. Bounded by a

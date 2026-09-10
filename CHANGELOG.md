@@ -7,6 +7,38 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/).
 
 ## [non publié]
 
+### 2026-09-10 — deux bugs trouvés en flashant : en-têtes tronqués, et Telnet qui corrompt le binaire
+
+Premier essai sur matériel réel de `ATDISKWR` (et, incidemment, première
+vérification **octet par octet** d'`ATGET`). Les deux corrections ci-dessous
+n'auraient pas pu être trouvées autrement : le mock côté hôte reproduisait le
+protocole, pas le firmware.
+
+**1. `ATDISKWR` : en-têtes de requête TRONQUÉS.** Le buffer était déclaré
+`char clh[80]`, or la chaîne fait **82 octets** dès un `len` d'un chiffre :
+`snprintf` coupait silencieusement le `\r\n\r\n` final. La requête n'avait donc
+pas de fin d'en-têtes — le serveur local attendait la suite **sans jamais
+répondre** (connexion laissée ouverte, modem bloqué en ligne), et un load
+balancer AWS renvoyait `400 Bad Request`. Buffer porté à 128, et la troncature
+n'est **plus silencieuse** : `snprintf` est contrôlé et la commande échoue
+proprement.
+
+**2. Les transactions HTTP héritaient du mode Telnet — et il corrompt le
+binaire.** `httpGet`, `httpPost` et `ATDISKWR` ne touchaient pas
+`sessionTelnetType`, qui n'est fixé qu'au démarrage et dans `dialNumber`. Avec
+`ATNET1` (le défaut ici), le relais de session applique donc le traitement
+Telnet : à la réception un `IAC` (`0xFF`) est **interprété avec l'octet suivant**,
+à l'émission il est **doublé** et un `CR` se voit suivi d'un `NUL` (`support.h`).
+**Mesuré** : une tranche de 32 octets contenant `FF 00` revenait à **30 octets**,
+ces deux-là avalés. `ATNET0` seul ne suffisait pas — le réglage n'est relu qu'au
+redémarrage. Les trois fonctions forcent désormais `sessionTelnetType =
+NO_TELNET` : **HTTP n'est pas du Telnet**.
+
+Le second bug **préexistait à `ATDISKWR`** : il affectait déjà `ATGET`, donc toute
+lecture binaire (une piste de disque, un programme) via ce firmware. Il n'avait
+jamais été vu parce que les vérifications portaient sur la taille reçue, pas sur
+le contenu.
+
 ### 2026-09-10 — `ATDISKWR` : écriture BINAIRE octet-exacte (PUT), et l'aide ne perd plus sa dernière ligne
 
 **`ATDISKWR<url>?offset=<o>&len=<n>`** — les `<n>` octets qui suivent la ligne de commande sont
