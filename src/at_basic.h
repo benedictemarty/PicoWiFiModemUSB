@@ -412,18 +412,25 @@ char *httpPost(char *atCmd) {
 
 
 //
-// ATDISKWR<url>?offset=<o>&len=<n>  — write a BINARY slice to an HTTP resource
+// ATDISKWR<url>?offset=<o>&len=<n>  — PUT a BINARY body, byte-exact
 //
 // The <n> bytes that follow the command line are read RAW from the serial link —
 // no line handling, no terminator, no escaping — and streamed to the server as
-// the body of a PUT. The modem answers OK (HTTP 2xx) or ERROR.
+// the body of a PUT. The server's response is then RELAYED VERBATIM, exactly as
+// ATGET does: CONNECT, the raw HTTP, then NO CARRIER.
 //
 // WHY THIS EXISTS, when ATPOST already does POST: ATPOST is a LINE channel. It
 // drops CR (`if( c == '\r' ) continue;` in httpPost), joins body lines with LF,
 // stops on a lone '.', and caps the body at 3 kB. Measured 2026-09-10: six bytes
 // 00 0D 0A 1A FF 41 came back as five, 00 0A 1A FF 41. Binary payloads — a disk
 // track, a saved program — cannot survive that. This command is the byte-exact
-// counterpart, and the one LOCI's webdisk (oric/dsk_web.c) already expects.
+// counterpart.
+//
+// WHAT IT DELIBERATELY DOES NOT DO: parse the response. An earlier version read
+// the status line here and answered OK/ERROR, which put a second HTTP client in
+// the firmware — the host already has one. A modem TRANSPORTS; the host speaks
+// HTTP. Keeping the split means one decoder to maintain, in one place, and it is
+// why this command relays instead of judging.
 //
 // Length is known up front, so the body is STREAMED: no buffer the size of a
 // track is held in RAM (a track is 6400 bytes, the whole point of the command).
@@ -497,23 +504,21 @@ char *diskWrite(char *atCmd) {
          lastByte = millis();
       }
    }
-   if( got < len ) {                   // truncated: do NOT report success
+   if( got < len ) {                   // truncated: nothing was fully sent
       tcpClientClose(tcpClient);
       sendResult(R_ERROR);
       atCmd[0] = NUL;
       return atCmd;
    }
 
-   // Read the status line and report OK only on 2xx. The 6502 side (dsk_web.c)
-   // scans for OK/ERROR, so no HTTP is relayed to it.
-   char  line[64];
-   uint16_t ll = tcpReadBytesUntil(tcpClient, '\n', line, sizeof(line) - 1);
-   line[ll] = NUL;
-   int code = 0;
-   char *sp = strchr(line, ' ');
-   if( sp ) code = atoi(sp + 1);
-   tcpClientClose(tcpClient);
-   sendResult( (code >= 200 && code < 300) ? R_OK : R_ERROR );
+   // Body sent: hand the connection over like ATGET does. The response streams
+   // back raw and the host decides what the status means.
+   connectTime = millis();
+   dtrWentInactive = false;
+   sendResult(R_CONNECT);
+   ser_set(DCD, ACTIVE);
+   amClient = true;
+   state = ONLINE;
    atCmd[0] = NUL;
    return atCmd;
 }

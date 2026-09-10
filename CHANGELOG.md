@@ -11,8 +11,14 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/).
 
 **`ATDISKWR<url>?offset=<o>&len=<n>`** — les `<n>` octets qui suivent la ligne de commande sont
 lus **bruts** sur le lien série (aucun traitement de ligne, aucun terminateur, aucun
-échappement) et **streamés** dans le corps d'un `PUT`. Le modem répond `OK` (HTTP 2xx) ou
-`ERROR`.
+échappement) et **streamés** dans le corps d'un `PUT`. La réponse du serveur est ensuite
+**relayée verbatim**, exactement comme le fait `ATGET`.
+
+**Ce que la commande ne fait délibérément PAS : parser la réponse.** Une première version lisait
+la status line ici et répondait `OK`/`ERROR` — ce qui plaçait un **second client HTTP** dans ce
+firmware, alors que l'hôte en a déjà un. Un modem **transporte** ; l'hôte parle HTTP. Le partage
+ainsi tenu, il n'y a **qu'un décodeur à maintenir, à un seul endroit**, et c'est pourquoi cette
+commande relaie au lieu de juger.
 
 **Pourquoi, alors qu'`ATPOST` fait déjà du POST** : `ATPOST` est un canal **ligne**. Mesuré le
 2026-09-10 contre `httpbin.org/post` — six octets `00 0D 0A 1A FF 41` reviennent en **cinq**,
@@ -28,7 +34,7 @@ Détails d'implémentation :
   l'appelant à moitié consommés sur le fil ;
 - chien de garde sur le **silence** (3 s) et non sur la durée totale : un émetteur lent n'est
   pas coupé, un émetteur mort ne bloque pas le modem ;
-- **charge tronquée ⇒ `ERROR`**, jamais `OK` ;
+- **charge tronquée ⇒ `ERROR`** avant même de passer en ligne, jamais de faux succès ;
 - la **query est transmise telle quelle** au serveur : c'est son `offset=` qui place la tranche
   (`len=` lui est inutile, il l'ignore) ;
 - plafond `DISKWR_MAX_BYTES` = 8192 (couvre la piste de 6400 avec de la marge).

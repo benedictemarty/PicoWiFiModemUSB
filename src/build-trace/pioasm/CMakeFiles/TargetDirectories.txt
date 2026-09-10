@@ -1,0 +1,3 @@
+/home/bmarty/picowifi/PicoWiFiModemUSB/src/build-trace/pioasm/CMakeFiles/pioasm.dir
+/home/bmarty/picowifi/PicoWiFiModemUSB/src/build-trace/pioasm/CMakeFiles/edit_cache.dir
+/home/bmarty/picowifi/PicoWiFiModemUSB/src/build-trace/pioasm/CMakeFiles/rebuild_cache.dir
