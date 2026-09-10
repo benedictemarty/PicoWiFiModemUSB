@@ -7,6 +7,27 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/).
 
 ## [non publié]
 
+### 2026-09-10 — Doc : `README.md` documente `ATDISKWR`
+
+Le code de `ATDISKWR` était livré et validé sur matériel, mais le `README.md` n'en
+portait qu'un paragraphe glissé **dans** la section `ATPOST`, et ni la liste des
+fonctionnalités ni le tableau de référence des commandes ne le mentionnaient.
+
+- **Nouvelle sous-section « Binary uploads (`ATDISKWR`) »** (après `ATPOST`, dont
+  le paragraphe intrus a été retiré) : syntaxe, cadrage brut piloté par `len=`,
+  requête `PUT` en flux (pas de buffer de la taille d'une piste), réponse
+  **relayée verbatim** comme `ATGET` — le modem transporte, l'hôte parle HTTP.
+  Limites documentées : `len` 1…**8192** o (`DISKWR_MAX_BYTES`), chien de garde de
+  **3 s sur le silence** (`DISKWR_IDLE_MS`, pas sur la durée totale : un hôte lent
+  n'est jamais coupé), `NO CARRIER` **avant** toute consommation d'octets si la
+  connexion échoue. Le « pourquoi pas `ATPOST` » est chiffré : `00 0D 0A 1A FF 41`
+  revenait en `00 0A 1A FF 41`.
+- **Encadré « HTTP is not Telnet »** : `ATGET`, `ATPOST` et `ATDISKWR` forcent
+  `NO_TELNET` — correctif du 2026-09-10 jusqu'ici visible seulement au CHANGELOG.
+- **Ajouts** : entrée dans le **tableau des commandes AT** (ordre alphabétique,
+  avant `ATDS`), puce dans **Features**, mention dans la **lignée du fork**.
+- Aucun changement de code ; `FW_VERSION` reste **0.3.3**.
+
 ### 2026-09-10 — deux bugs trouvés en flashant : en-têtes tronqués, et Telnet qui corrompt le binaire
 
 Premier essai sur matériel réel de `ATDISKWR` (et, incidemment, première

@@ -40,7 +40,7 @@ Direct ancestry (this fork is at the bottom):
 1. [jsalin/esp8266_modem](https://github.com/jsalin/esp8266_modem) — Jussi Salin's original ESP8266 virtual modem.
 2. [mecparts/RetroWiFiModem](https://github.com/mecparts/RetroWiFiModem) → [mecparts/PicoWiFiModem](https://github.com/mecparts/PicoWiFiModem) — Paul Rickards / mecparts lineage, ported to the Pico.
 3. [sodiumlb/PicoWiFiModemUSB](https://github.com/sodiumlb/PicoWiFiModemUSB) — **direct parent**: native USB-CDC variant for the Pico W, designed to pair with [LOCI](https://github.com/sodiumlb/loci-hardware).
-4. **this fork** ([benedictemarty/PicoWiFiModemUSB](https://github.com/benedictemarty/PicoWiFiModemUSB)) — adds TLS/SSL termination (mbedTLS), HTTPS `ATGET`/`ATPOST`, NTP time sync with certificate date checks, and the `AT$CA`, `AT$CV`, `AT$TIME` and `AT$TZ` commands.
+4. **this fork** ([benedictemarty/PicoWiFiModemUSB](https://github.com/benedictemarty/PicoWiFiModemUSB)) — adds TLS/SSL termination (mbedTLS), HTTPS `ATGET`/`ATPOST`, byte-exact binary `PUT` (`ATDISKWR`), NTP time sync with certificate date checks, and the `AT$CA`, `AT$CV`, `AT$TIME` and `AT$TZ` commands.
 
 ```
 jsalin/esp8266_modem
@@ -64,6 +64,9 @@ etc.) are listed under [References](#references).
   the decrypted page.
 - **HTTP/HTTPS POST** (`ATPOST`) with user-supplied headers and body — lets an
   8-bit host call modern **REST APIs** (see [TLS / HTTPS](#tls--https)).
+- **Byte-exact binary upload** (`ATDISKWR`): raw `PUT` of a length-prefixed slice,
+  streamed, response relayed verbatim — for payloads text framing would corrupt
+  (a disk track, a saved program). HTTP transactions are never Telnet-processed.
 - **Certificate verification** (`AT$CV1`) against a user-provided CA
   (`AT$CA=`) — refused unless a CA is present, so it never fails open.
 - **NTP time sync** on WiFi connection: certificate **validity dates** (not-yet-valid
@@ -183,16 +186,6 @@ AT$TZ=+2              set a display timezone offset (cert checks stay in UTC)
 
 ### POST requests (REST APIs)
 
-`ATDISKWR<url>?offset=<o>&len=<n>` writes a **binary** slice: the `<n>` bytes
-following the command line are read **raw** from the serial link — no line
-handling, no terminator, no escaping — and streamed as the body of a `PUT`. The
-server's response is then **relayed verbatim**, exactly as `ATGET` does. Use it
-instead of `ATPOST` whenever the payload is not text: `ATPOST` is a line channel
-and **drops CR**, joins body lines with LF, stops on a lone `.`, and caps the body
-at 3 kB. The query string is forwarded untouched, so the server's own `offset=`
-places the slice. The modem does **not** parse the response — it transports, the
-host speaks HTTP.
-
 `ATPOST` is the symmetric of `ATGET` for sending data:
 
 ```
@@ -205,6 +198,37 @@ After the command the modem prompts for optional **request headers**, then a
 response is streamed back over the serial link. `https://` targets reuse the same
 TLS termination (and certificate verification) as `ATGET`. Header buffer 768 B,
 body buffer 3072 B (`ERROR` on overflow).
+
+### Binary uploads (`ATDISKWR`)
+
+```
+ATDISKWRhttp://host[:port]/path?offset=<o>&len=<n>
+<len bytes, raw>
+```
+
+`ATPOST` is a **line** channel: it drops CR, joins body lines with LF, stops on a
+lone `.` and caps the body at 3 kB. Measured on hardware (2026-09-10), the six
+bytes `00 0D 0A 1A FF 41` came back as five — `00 0A 1A FF 41`. A disk track or a
+saved program cannot survive that, so `ATDISKWR` is the **byte-exact**
+counterpart: the `<n>` bytes following the command line are read **raw** from the
+serial link — no line handling, no terminator, no escaping — and **streamed** to
+the server as the body of a `PUT` (no track-sized buffer is held in RAM).
+
+The response is **relayed verbatim**, exactly as `ATGET` does (`CONNECT`, the raw
+HTTP, then `NO CARRIER`): the modem *transports*, the host speaks HTTP. Only
+`len=` is consumed, to know how many bytes to read; the query string is forwarded
+untouched, so the server's own `offset=` places the slice.
+
+Limits: `len` must be 1…**8192** bytes (`DISKWR_MAX_BYTES`), and a **3 s silence**
+watchdog (`DISKWR_IDLE_MS`) aborts a sender that dies mid-payload — the watchdog
+is on *silence*, not on total time, so a slow host is never cut off. A refused
+connection answers `NO CARRIER` **before** any payload byte is consumed. `https://`
+targets reuse the same TLS termination as `ATGET`.
+
+**HTTP is not Telnet.** `ATGET`, `ATPOST` and `ATDISKWR` force `NO_TELNET` for the
+transaction. Before this, they inherited `sessionTelnetType`, so with `ATNET1` an
+`IAC` (`0xFF`) was interpreted on receive and doubled on send, and `CR` was
+followed by `NUL` — silently corrupting binary payloads.
 
 ## Command reference
 
@@ -221,6 +245,7 @@ AT      | The attention prefix preceding all commands except A/ and +++.
 AT?     | Displays a help cheatsheet.
 ATA     | Force the modem to answer an incoming connection.
 ATC?<br>ATC*n* | Query/change WiFi connection status. 0 = not connected, 1 = connected. `ATC0` disconnects, `ATC1` connects.
+ATDISKWR*http&#58;//host[/path]?offset=&len=*<br>ATDISKWR*https&#58;//host[…]* | **Binary** `PUT`: read exactly `len` bytes **raw** from the serial link (no line handling, no escaping, 1…8192 B, 3 s silence timeout) and stream them as the request body, then relay the server's response verbatim like `ATGET`. Use instead of `ATPOST` for non-text payloads. See [Binary uploads](#binary-uploads-atdiskwr).
 ATDS*n* | Calls the host in speed dial slot *n* (0-9).
 ATDT<i>[+=-]host[:port]</i> | Establish a TCP connection to host/IP (default port 23, Telnet). Speed-dial by alias or 7 identical digits. A leading `+`/`=`/`-` overrides the ATNET setting for the call (**+** fake Telnet, **=** real Telnet, **-** no Telnet). Pressing a key before connect aborts.
 ATE?<br>ATE*n* | Command-mode echo. E0 off, E1 on.
