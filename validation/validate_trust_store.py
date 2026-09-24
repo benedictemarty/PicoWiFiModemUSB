@@ -132,6 +132,16 @@ def main():
     rec(f"ATI reports v{VERSION}", f"modem v{VERSION}" in o, next((l.strip() for l in o.splitlines() if "modem v" in l), "?"))
     build = next((l.strip() for l in o.splitlines() if l.startswith("Build")), "?")
     rec(f"ATI build id is the release tag v{VERSION}", f"Build......: v{VERSION} (" in build, build)
+    rec("WiFi joined at boot (WPA2 mixed mode since v0.4.2)", "CONNECTED TO WIFI" in o,
+        next((l.strip() for l in o.splitlines() if "WiFi status" in l), "?"))
+    at(s, "ATC0", 3.0)
+    at(s, "ATC1", 3.0)
+    joined = False
+    for _ in range(15):
+        if "CONNECTED TO WIFI" in at(s, "ATI", 2.0):
+            joined = True
+            break
+    rec("ATC0 then ATC1: WiFi joined again (ATC1 join path)", joined)
     o = at(s, "AT$CV?")
     rec("verification ON (default or migrated from 0.3.x)", "1" in o.split("OK")[0], o.strip().splitlines()[0] if o.strip() else "?")
     at(s, "AT$CA-")

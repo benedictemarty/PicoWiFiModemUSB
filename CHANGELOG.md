@@ -7,6 +7,23 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/).
 
 ## [non publié]
 
+## [0.4.2] — 2026-09-24 — Wi-Fi : mode WPA2 mixte (TKIP + AES)
+
+- **Connexion Wi-Fi en `CYW43_AUTH_WPA2_MIXED_PSK`** au lieu de `CYW43_AUTH_WPA2_AES_PSK`, aux deux
+  endroits où le modem rejoint un réseau (démarrage, `wifi_modem.cpp` ; `ATC1`, `at_basic.h`). Même
+  changement que le commit `1760493` de la branche `webdisk` du clone LOCI, et que le modem
+  Neo6502picowifi.
+- **Effet réel** (lu dans le pilote cyw43 v1.0.1, `cyw43_ll_wifi_join`) : l'authentification reste
+  WPA2-PSK dans les deux cas ; seuls les chiffrements acceptés changent (`wsec` 0x06 = TKIP + AES
+  au lieu de 0x04 = AES seul). Le modem rejoint donc aussi les points d'accès « WPA/WPA2 » ou WPA2
+  qui utilisent encore TKIP (souvent comme clé de groupe sur les vieilles box). Un réseau **WPA1
+  pur** reste inaccessible (il faudrait `CYW43_AUTH_WPA_TKIP_PSK`). Réseaux WPA2-AES : inchangés.
+- Test hôte `validation/host-tests/test_wifi_auth.py` : chaque connexion utilise le mode mixte,
+  plus aucune en AES seul (échoue sur le code 0.4.1, vérifié). `validate_trust_store.py` : ajout de
+  la connexion au démarrage et d'un `ATC0` / `ATC1` (chemin `ATC1`).
+- Non testé sur un vrai réseau TKIP (aucun disponible) : seule la non-régression sur un réseau
+  WPA2-AES est vérifiable sur carte.
+
 ## [0.4.1] — 2026-09-24 — Version unique, identifiant de build, compilation reproductible
 
 - 2026-09-24 : release **v0.4.1 publiée** — https://github.com/benedictemarty/PicoWiFiModemUSB/releases/tag/v0.4.1

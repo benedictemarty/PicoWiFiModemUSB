@@ -18,6 +18,8 @@
    // 0.4.1: version from the VERSION file (single source, passed by CMake);
    // reproducible build — ATI shows the git describe id and the commit date,
    // BUILD_EPOCH = commit date (build_id.h); nothing reads the build clock.
+   // 0.4.2: WiFi join with CYW43_AUTH_WPA2_MIXED_PSK (TKIP + AES ciphers) for
+   // older WPA/WPA2 access points; WPA2-AES networks are unaffected.
    #ifndef FW_VERSION
       #error "FW_VERSION is defined by src/CMakeLists.txt from the VERSION file"
    #endif

@@ -63,6 +63,9 @@ echo
 # CA callback (src/roots_ca_cb.c) and the 0.3.x → 0.4.0 settings migration.
 ROOT="$HERE/../.."
 SAN="-fsanitize=address,undefined"
+echo "== Running WiFi join mode test =="
+python3 "$HERE/test_wifi_auth.py"
+
 echo "== Running version / reproducible-build test =="
 python3 "$HERE/test_version.py"
 

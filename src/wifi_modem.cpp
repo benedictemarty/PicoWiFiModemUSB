@@ -158,8 +158,11 @@ void setup(void) {
    // arrival of serial data
    cyw43_wifi_pm(&cyw43_state, CYW43_DEFAULT_PM & ~0xf);
    if( settings.ssid[0] ) {
-      // Empty password ⇒ open network (no auth); otherwise WPA2.
-      uint32_t authMode = settings.wifiPassword[0] ? CYW43_AUTH_WPA2_AES_PSK : CYW43_AUTH_OPEN;
+      // Empty password ⇒ open network (no auth); otherwise WPA2 PSK with the TKIP
+      // AND AES ciphers allowed (MIXED: wsec 0x06 instead of 0x04), so older
+      // "WPA/WPA2" access points that still use TKIP (often as group cipher) are
+      // joined too. Pure WPA1 networks would need CYW43_AUTH_WPA_TKIP_PSK.
+      uint32_t authMode = settings.wifiPassword[0] ? CYW43_AUTH_WPA2_MIXED_PSK : CYW43_AUTH_OPEN;
       for( int i = 0; i < 4; ++i ) {
          cyw43_arch_wifi_connect_timeout_ms(settings.ssid, settings.wifiPassword, authMode, 10000);
          if( cyw43_tcpip_link_status(&cyw43_state, CYW43_ITF_STA) == CYW43_LINK_UP ) {

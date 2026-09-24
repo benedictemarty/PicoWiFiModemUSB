@@ -48,8 +48,11 @@ char *wifiConnection(char *atCmd) {
       case '1':
          ++atCmd;
          if( settings.ssid[0] ) {
-            // Empty password ⇒ open network (no auth); otherwise WPA2.
-            uint32_t authMode = settings.wifiPassword[0] ? CYW43_AUTH_WPA2_AES_PSK : CYW43_AUTH_OPEN;
+            // Empty password ⇒ open network (no auth); otherwise WPA2 PSK with the TKIP
+            // AND AES ciphers allowed (MIXED: wsec 0x06 instead of 0x04), so older
+            // "WPA/WPA2" access points that still use TKIP (often as group cipher) are
+            // joined too. Pure WPA1 networks would need CYW43_AUTH_WPA_TKIP_PSK.
+            uint32_t authMode = settings.wifiPassword[0] ? CYW43_AUTH_WPA2_MIXED_PSK : CYW43_AUTH_OPEN;
             if( !settings.quiet && settings.extendedCodes ) {
                printf("CONNECTING TO SSID %s", settings.ssid);
             }
