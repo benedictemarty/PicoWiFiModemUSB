@@ -7,6 +7,29 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/).
 
 ## [non publié]
 
+### 2026-09-24 — Version unique, identifiant de build, compilation reproductible
+
+Même démarche que le modem Neo6502picowifi (US-W3/US-W5). Deux compilations de la v0.4.0
+donnaient deux UF2 différents : `ATI` affichait `__DATE__ __TIME__`, et CMake fixait
+`BUILD_EPOCH` (plancher de l'horloge avant SNTP) à l'heure de configuration.
+
+- **Version** : fichier `VERSION` (semver), seule source ; `src/CMakeLists.txt` la passe en
+  `FW_VERSION` ; `wifi_modem.h` n'en définit plus (`#error` si absente).
+- **Identifiant de build** : `cmake/build_id.cmake`, exécuté à chaque compilation, écrit
+  `build_id.h` depuis git : `FW_BUILD` (`git describe` : `v0.4.0` pour une release,
+  `v0.4.0-N-gSHA[-dirty]` sinon), `FW_BUILD_DATE` (date du commit, UTC, locale C),
+  `BUILD_EPOCH` (date du commit). `ATI` : `Build......: v0.4.0-1-g53eea90-dirty (Sep 24 2026
+  17:02:08 UTC)` au lieu de la date de compilation.
+- **Reproductible** : deux compilations dans deux répertoires → UF2 identiques (vérifié).
+- **`tools/release.sh`** : contrôles (main, arbre propre, section CHANGELOG), tests hôte, tag,
+  **deux compilations comparées**, `dist/wifi_modem-vX.Y.Z.uf2` + SHA-256 ; `--publish NOTES.md`
+  pousse et crée la release GitHub (avec le zip s'il est dans `dist/`).
+- **Tests** : `validation/host-tests/test_version.py` (VERSION ↔ CMake ↔ CHANGELOG ↔ tag, aucune
+  version codée en dur, aucun `__DATE__`/`__TIME__`/`TIMESTAMP` dans les sources) ; `run.sh`
+  définit `FW_VERSION` pour les tests qui incluent `wifi_modem.h`. Mutation vérifiée (VERSION
+  modifié → échec).
+- Non flashé sur carte : seule la chaîne `Build` de `ATI` change (contrôlée dans le binaire).
+
 - 2026-09-24 : release **v0.4.0 publiée** — https://github.com/benedictemarty/PicoWiFiModemUSB/releases/tag/v0.4.0
   (tag `v0.4.0` sur `cc42058`). `wifi_modem-v0.4.0.uf2` SHA-256
   `a18f7ee3587f2f832bc60557b4ee91936cc35108c626145c19b2d3c979e3aa80` = l'UF2 validé 18/18 sur carte ;

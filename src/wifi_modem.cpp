@@ -53,6 +53,7 @@
 //#include "eeprom.h"
 #include "lfs.h"
 #include "settings_migrate.h"
+#include "build_id.h"          // FW_BUILD, FW_BUILD_DATE, BUILD_EPOCH (cmake/build_id.cmake)
 #include "time_support.h"
 #include "tcp_support.h"
 #include "support.h"

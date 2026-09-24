@@ -320,6 +320,23 @@ cmake --build src/build -j
 The firmware is produced at `src/build/wifi_modem.uf2`. A Wokwi test variant
 (UART console instead of USB CDC) can be built with `-DWOKWI=1`.
 
+### Versions and reproducible builds
+
+- The version lives in the [`VERSION`](VERSION) file only (semver); CMake passes it
+  to the firmware (`ATI` → `Pico WiFi modem vX.Y.Z`).
+- `ATI` also shows the **build id**, recomputed on every build from git
+  (`cmake/build_id.cmake`): `Build......: v0.4.1 (…)` is a release;
+  `v0.4.1-3-gabc1234-dirty` is a work build (3 commits after the tag, local
+  changes). The date shown is the **commit** date (UTC), and the clock floor
+  used before the first SNTP sync is the commit date too.
+- Nothing reads the build clock, so **the same commit always gives the same
+  UF2**. `validation/host-tests/test_version.py` guards it (no `__DATE__`,
+  `__TIME__` or CMake `TIMESTAMP` in the sources; VERSION ↔ CMake ↔ CHANGELOG ↔ tag).
+- Release: bump `VERSION`, move the CHANGELOG `[non publié]` entries under
+  `## [X.Y.Z] — date`, commit, then `tools/release.sh` (host tests, `vX.Y.Z` tag,
+  **two builds that must be identical**, `dist/wifi_modem-vX.Y.Z.uf2` + SHA-256);
+  `tools/release.sh --publish NOTES.md` pushes and creates the GitHub release.
+
 See [CHANGELOG.md](CHANGELOG.md) for version history.
 
 ## Notes

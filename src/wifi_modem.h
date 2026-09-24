@@ -15,7 +15,12 @@
    // and certificate verification ON by default; an uploaded CA replaces the
    // store; settings from 0.3.x migrated (MAGIC_NUMBER_V03 → verification on);
    // MBEDTLS_ECP_NIST_OPTIM (P-384 chain: 12.4 s → 3.0 s).
-   #define FW_VERSION            "0.4.0"
+   // 0.4.1: version from the VERSION file (single source, passed by CMake);
+   // reproducible build — ATI shows the git describe id and the commit date,
+   // BUILD_EPOCH = commit date (build_id.h); nothing reads the build clock.
+   #ifndef FW_VERSION
+      #error "FW_VERSION is defined by src/CMakeLists.txt from the VERSION file"
+   #endif
 
    #define DEBUG                 0
    #define DEFAULT_SPEED         9600

@@ -64,20 +64,31 @@ add_executable(${PROJECT_NAME}
 if(WOKWI)
       target_compile_definitions(${PROJECT_NAME} PRIVATE WOKWI_BUILD=1)
 endif()
-# Clock floor before the SNTP sync: CMake configuration date (see time_support.h).
-string(TIMESTAMP BUILD_EPOCH "%s" UTC)
+# Version: the VERSION file at the repository root is the single source.
+file(STRINGS ${CMAKE_CURRENT_LIST_DIR}/../VERSION FW_VERSION LIMIT_COUNT 1)
+# Build id, build date and clock floor (BUILD_EPOCH, see time_support.h) come
+# from git, recomputed on every build — never from the build clock, so the
+# same commit gives the same UF2 (reproducible build).
+add_custom_target(fw_build_id
+      COMMAND ${CMAKE_COMMAND} -DSRC=${CMAKE_CURRENT_LIST_DIR}/.. -DOUT=${CMAKE_CURRENT_BINARY_DIR}/build_id.h
+              -P ${CMAKE_CURRENT_LIST_DIR}/../cmake/build_id.cmake
+      BYPRODUCTS ${CMAKE_CURRENT_BINARY_DIR}/build_id.h
+      COMMENT "Build id (git describe)"
+      )
+add_dependencies(${PROJECT_NAME} fw_build_id)
 target_compile_definitions(${PROJECT_NAME} PRIVATE
       CYW43_HOST_NAME=\"${CYW43_HOST_NAME}\"
       LFS_NO_MALLOC=1
       LFS_NAME_MAX=64
       PICO_FLASH_SIZE_BYTES=2097152
-      BUILD_EPOCH=${BUILD_EPOCH}UL
+      FW_VERSION=\"${FW_VERSION}\"
       MBEDTLS_CONFIG_FILE=\"mbedtls_config.h\"
       #PICO_STDIO_ENABLE_CRLF_SUPPORT
       )
 target_include_directories(${PROJECT_NAME} PRIVATE
       ${CMAKE_CURRENT_LIST_DIR}/tinyusb/src
       ${CMAKE_CURRENT_LIST_DIR}
+      ${CMAKE_CURRENT_BINARY_DIR}
       )
 target_link_libraries(${PROJECT_NAME}
       pico_cyw43_arch_lwip_threadsafe_background

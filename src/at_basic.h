@@ -665,7 +665,7 @@ char *showNetworkInfo(char *atCmd) {
    do {      // a Q&D hack to allow ^C to terminate the output at the
              // end of a page
       if( PagedOut("Pico WiFi modem v" FW_VERSION, true) ) break;
-      if( PagedOut("Build......: " __DATE__ " " __TIME__) ) break;
+      if( PagedOut("Build......: " FW_BUILD " (" FW_BUILD_DATE ")") ) break;
       snprintf(infoLine, sizeof infoLine, "Baud.......: %lu", settings.serialSpeed);
       if( PagedOut(infoLine) ) break;
       strncpy(infoLine, "WiFi status: ", (sizeof infoLine)-1);

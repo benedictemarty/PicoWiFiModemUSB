@@ -43,7 +43,7 @@ echo "== Building AT&W / writeSettings test =="
 # over any same-named real header. LittleFS sources compile with -w: they are
 # third-party and not the subject under test.
 "$CC" -std=c11 \
-  -DLFS_NO_MALLOC=1 -DLFS_NAME_MAX=64 \
+  -DLFS_NO_MALLOC=1 -DLFS_NAME_MAX=64 -DFW_VERSION='"host"' \
   -I"$STUBS_LFS" \
   -I"$SRC" \
   -I"$LFS" \
@@ -63,6 +63,9 @@ echo
 # CA callback (src/roots_ca_cb.c) and the 0.3.x → 0.4.0 settings migration.
 ROOT="$HERE/../.."
 SAN="-fsanitize=address,undefined"
+echo "== Running version / reproducible-build test =="
+python3 "$HERE/test_version.py"
+
 echo "== Running trust store generator test (roots2c.py) =="
 python3 "$HERE/test_roots2c.py"
 
@@ -76,7 +79,7 @@ echo "== Running trust store lookup test =="
 
 echo
 echo "== Building settings migration test =="
-"$CC" -std=c11 -Wall -Wextra \
+"$CC" -std=c11 -Wall -Wextra -DFW_VERSION='"host"' \
   -I"$STUBS_LFS" \
   -I"$SRC" \
   "$HERE/test_settings_migrate.c" \
