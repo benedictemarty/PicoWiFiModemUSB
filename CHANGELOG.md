@@ -7,6 +7,8 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/).
 
 ## [non publié]
 
+## [0.4.1] — 2026-09-24 — Version unique, identifiant de build, compilation reproductible
+
 ### 2026-09-24 — Version unique, identifiant de build, compilation reproductible
 
 Même démarche que le modem Neo6502picowifi (US-W3/US-W5). Deux compilations de la v0.4.0
@@ -30,13 +32,13 @@ donnaient deux UF2 différents : `ATI` affichait `__DATE__ __TIME__`, et CMake f
   modifié → échec).
 - Non flashé sur carte : seule la chaîne `Build` de `ATI` change (contrôlée dans le binaire).
 
+## [0.4.0] — 2026-09-24 — Magasin de racines Mozilla intégré, vérification activée par défaut
+
 - 2026-09-24 : release **v0.4.0 publiée** — https://github.com/benedictemarty/PicoWiFiModemUSB/releases/tag/v0.4.0
   (tag `v0.4.0` sur `cc42058`). `wifi_modem-v0.4.0.uf2` SHA-256
   `a18f7ee3587f2f832bc60557b4ee91936cc35108c626145c19b2d3c979e3aa80` = l'UF2 validé 18/18 sur carte ;
   paquet `PicoWiFiModemUSB-v0.4.0.zip` (firmware, `wificonf.bas`, `serialcore.asm`, manuels EN/FR mis à
   jour — section 7b réécrite —, `README.txt`), sans `ca-bundle-lfs.uf2`.
-
-## [0.4.0] — 2026-09-24 — Magasin de racines Mozilla intégré, vérification activée par défaut
 
 Contient aussi les entrées non publiées depuis la 0.3.3 ci-dessous (`ATDISKWR`, robustification
 `AT&W`, CI host-tests, trace de debug).

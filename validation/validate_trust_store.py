@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Hardware validation of v0.4.0: built-in trust store, verification on by default.
+"""Hardware validation of the built-in trust store (since v0.4.0), verification on by default.
 
 Drives the dongle over USB CDC and checks, against real servers:
   - verification is ON (fresh default, or migrated from 0.3.x settings);
@@ -14,7 +14,8 @@ Settings are never written (no AT&W): AT$CA- and AT$CV1 restore the state.
 SERIAL PROTOCOL: AT commands end with CR only; the PEM upload (AT$CA=) is split
 on LF and ends with a line holding only '.'.
 
-Prerequisites: dongle flashed with v0.4.0, WiFi provisioned, Internet access.
+Prerequisites: dongle flashed with the version in ../VERSION, WiFi provisioned,
+Internet access.
 Usage: python3 validation/validate_trust_store.py [/dev/ttyACM0]
 """
 import sys
@@ -25,6 +26,8 @@ import serial
 PORT = sys.argv[1] if len(sys.argv) > 1 else "/dev/ttyACM0"
 BAUD = 115200
 HERE = __file__.rsplit("/", 1)[0]
+with open(f"{HERE}/../VERSION") as _f:
+    VERSION = _f.read().strip()
 
 results = []
 
@@ -126,7 +129,9 @@ def main():
 
     print("\n== 0. Firmware identity and defaults ==")
     o = at(s, "ATI", 3.0)
-    rec("ATI reports v0.4.0", "v0.4.0" in o, next((l.strip() for l in o.splitlines() if "modem v" in l), "?"))
+    rec(f"ATI reports v{VERSION}", f"modem v{VERSION}" in o, next((l.strip() for l in o.splitlines() if "modem v" in l), "?"))
+    build = next((l.strip() for l in o.splitlines() if l.startswith("Build")), "?")
+    rec(f"ATI build id is the release tag v{VERSION}", f"Build......: v{VERSION} (" in build, build)
     o = at(s, "AT$CV?")
     rec("verification ON (default or migrated from 0.3.x)", "1" in o.split("OK")[0], o.strip().splitlines()[0] if o.strip() else "?")
     at(s, "AT$CA-")
