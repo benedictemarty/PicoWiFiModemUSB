@@ -9,6 +9,13 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/).
 
 ## [0.4.2] — 2026-09-24 — Wi-Fi : mode WPA2 mixte (TKIP + AES)
 
+- 2026-09-24 : release **v0.4.2 publiée** — https://github.com/benedictemarty/PicoWiFiModemUSB/releases/tag/v0.4.2
+  (tag `v0.4.2` sur `74737e5`). `wifi_modem-v0.4.2.uf2` SHA-256
+  `b21a5847f5b947ff7779376cabeb28990e6bf36b5773ab892c62941b020e50d2` (reproductible : recompilé à
+  l'identique à la publication). Validé sur carte **21/21** ; contrôle manuel en plus : `ATC0` →
+  `LINK IS DOWN`, `ATC1` → reconnecté en 5,4 s en mode mixte. `validate_trust_store.py` vérifie
+  désormais aussi que `ATC0` coupe réellement le lien (sinon l'étape `ATC1` ne prouvait rien).
+
 - **Connexion Wi-Fi en `CYW43_AUTH_WPA2_MIXED_PSK`** au lieu de `CYW43_AUTH_WPA2_AES_PSK`, aux deux
   endroits où le modem rejoint un réseau (démarrage, `wifi_modem.cpp` ; `ATC1`, `at_basic.h`). Même
   changement que le commit `1760493` de la branche `webdisk` du clone LOCI, et que le modem

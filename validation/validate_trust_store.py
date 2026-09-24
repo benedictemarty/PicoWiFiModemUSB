@@ -135,6 +135,8 @@ def main():
     rec("WiFi joined at boot (WPA2 mixed mode since v0.4.2)", "CONNECTED TO WIFI" in o,
         next((l.strip() for l in o.splitlines() if "WiFi status" in l), "?"))
     at(s, "ATC0", 3.0)
+    down = next((l.strip() for l in at(s, "ATI", 2.0).splitlines() if "WiFi status" in l), "?")
+    rec("ATC0: WiFi link really down (so ATC1 below is a real rejoin)", "CONNECTED TO WIFI" not in down, down)
     at(s, "ATC1", 3.0)
     joined = False
     for _ in range(15):

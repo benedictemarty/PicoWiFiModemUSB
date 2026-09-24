@@ -74,3 +74,10 @@ Mesures A/B sur la même carte, 3 essais par hôte :
 carte : `validate_trust_store.py` **19/19** (nouvelle étape : `ATI` → `Build......: v0.4.1 (Sep 24
 2026 20:05:40 UTC)`, l'identifiant du tag). Temps : badssl.com 1,9 s, www.digicert.com 0,9 s,
 github.com 3,0 s.
+
+## v0.4.2 — 2026-09-24 22:39
+
+`dist/wifi_modem-v0.4.2.uf2` (SHA-256 `b21a5847…`, reproductible) : `validate_trust_store.py`
+**21/21**, dont la connexion Wi-Fi au démarrage et un `ATC0`/`ATC1` en mode WPA2 mixte (réseau
+WPA2-AES). Contrôle manuel : après `ATC0`, `WiFi status: LINK IS DOWN` ; `ATC1` →
+`CONNECTED TO WIFI` en 5,4 s. Pas de réseau TKIP disponible pour tester l'apport du mode mixte.
