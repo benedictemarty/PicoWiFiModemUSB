@@ -28,10 +28,22 @@
 | www.digicert.com | 2,5 s | 0,9 s |
 | github.com | 14,4 s | 12,4 s |
 
-github.com reste lent avec les deux méthodes : la chaîne est en ECDSA P-384, dont la vérification
-domine sur le RP2040 avec la configuration mbedTLS actuelle. Piste non traitée ici :
-`MBEDTLS_ECP_WINDOW_SIZE` / `MBEDTLS_ECP_FIXED_POINT_OPTIM`, qui ont divisé ce temps par 4
-sur le modem Neo6502picowifi.
+github.com reste lent avec les deux méthodes : la chaîne est en ECDSA P-384.
+
+## Optimisation ECDSA (`MBEDTLS_ECP_NIST_OPTIM`) — même jour, version publiée
+
+`ECP_WINDOW_SIZE` (4) et `ECP_FIXED_POINT_OPTIM` (1) étant déjà les valeurs par défaut de
+mbedTLS 2.28, seul `MBEDTLS_ECP_NIST_OPTIM` (réduction rapide des courbes NIST) a été ajouté.
+Mesures A/B sur la même carte, 3 essais par hôte :
+
+| Hôte | Sans (`Build Sep 24 2026 16:58:15`) | Avec (`Build Sep 24 2026 18:52:49`) |
+|---|---|---|
+| badssl.com | 3,8 / 4,0 / 3,8 s | 2,1 / 2,1 / 2,0 s |
+| www.digicert.com | 0,9 / 0,9 / 0,9 s | 0,9 / 0,9 / 0,9 s |
+| github.com | 12,4 / 12,4 / 12,4 s | **3,0 / 3,0 / 3,0 s** |
+
+`validate_trust_store.py` rejoué sur la version avec optimisation (celle publiée en v0.4.0) :
+**18/18**, 2026-09-24 18:58.
 
 ## Résultats
 

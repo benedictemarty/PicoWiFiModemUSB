@@ -13,7 +13,8 @@
    // rejected it → no COM port (Linux tolerated it). Reported on defence-force forum.
    // 0.4.0: built-in Mozilla trust store in flash (roots_ca_cb, indexed lookup)
    // and certificate verification ON by default; an uploaded CA replaces the
-   // store; settings from 0.3.x migrated (MAGIC_NUMBER_V03 → verification on).
+   // store; settings from 0.3.x migrated (MAGIC_NUMBER_V03 → verification on);
+   // MBEDTLS_ECP_NIST_OPTIM (P-384 chain: 12.4 s → 3.0 s).
    #define FW_VERSION            "0.4.0"
 
    #define DEBUG                 0

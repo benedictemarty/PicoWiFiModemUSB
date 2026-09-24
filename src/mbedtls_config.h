@@ -37,6 +37,10 @@
 // the SNTP clock (time_support.h). Simpler, and without touching mbedTLS internals.
 
 #define MBEDTLS_CIPHER_MODE_CBC
+// Fast modular reduction for the NIST curves (P-256/P-384/P-521): speeds up the
+// ECDSA signature checks of certificate chains and ECDHE. WINDOW_SIZE (4) and
+// FIXED_POINT_OPTIM (1) are already mbedTLS 2.28 defaults.
+#define MBEDTLS_ECP_NIST_OPTIM
 #define MBEDTLS_ECP_DP_SECP256R1_ENABLED
 #define MBEDTLS_ECP_DP_SECP384R1_ENABLED
 #define MBEDTLS_ECP_DP_SECP521R1_ENABLED

@@ -7,6 +7,11 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/).
 
 ## [non publié]
 
+## [0.4.0] — 2026-09-24 — Magasin de racines Mozilla intégré, vérification activée par défaut
+
+Contient aussi les entrées non publiées depuis la 0.3.3 ci-dessous (`ATDISKWR`, robustification
+`AT&W`, CI host-tests, trace de debug).
+
 ### 2026-09-24 — v0.4.0 : magasin de racines Mozilla intégré, vérification activée par défaut
 
 Jusqu'ici la vérification des certificats était **désactivée par défaut** (`AT$CV0`) : tant
@@ -43,8 +48,16 @@ Neo6502picowifi (US-T13), adaptés à mbedTLS 2.28.
   constatée sur une carte 0.3.x : Wi-Fi conservé, vérification activée. Magasin indexé plus
   rapide que le bundle LittleFS lu en entier (badssl.com 3,8 s contre 6,7 s, www.digicert.com
   0,9 s contre 2,5 s ; github.com 12,4 s contre 14,4 s, dominé par ECDSA P-384).
+- **ECDSA plus rapide** : `MBEDTLS_ECP_NIST_OPTIM` (réduction modulaire rapide P-256/P-384/P-521 ;
+  `ECP_WINDOW_SIZE` 4 et `ECP_FIXED_POINT_OPTIM` 1 sont déjà les valeurs par défaut de mbedTLS 2.28).
+  Mesuré sur carte, 3 essais identiques : github.com (chaîne ECDSA P-384) **12,4 s → 3,0 s**,
+  badssl.com 3,9 s → 2,1 s, www.digicert.com (RSA) inchangé 0,9 s. Image +2,6 Ko (692 132 o).
+  Validation `validate_trust_store.py` rejouée sur cette version : 18/18.
 - Non changé : sans heure SNTP, les dates des certificats ne sont pas rejetées (horloge de repli
   = date de compilation), comportement documenté depuis la 0.3.0.
+- Release : `wifi_modem-v0.4.0.uf2` = l'UF2 validé sur carte (compilation non reproductible :
+  `ATI` affiche `__DATE__`/`__TIME__`) ; le paquet ne contient plus `ca-bundle-lfs.uf2` (inutile
+  avec le magasin intégré, et le flasher effacerait les réglages) ; manuels EN/FR mis à jour.
 
 ### 2026-09-10 — Doc : `README.md` documente `ATDISKWR`
 
