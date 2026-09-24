@@ -1,6 +1,6 @@
 # Rapport de validation matérielle — PicoWiFiModemUSB v0.4.0 — 2026-09-24
 
-- Firmware : `wifi_modem.uf2` compilé depuis le commit `25d9916` (SDK 1.5.1, mbedTLS 2.28.1),
+- Firmware : `wifi_modem.uf2` compilé depuis le commit `42b5544` (SDK 1.5.1, mbedTLS 2.28.1),
   image 689 540 o
 - Carte : Raspberry Pi Pico W (USB `cafe:4001`, `/dev/ttyACM0`), flashée par `AT+BOOTSEL` depuis le
   firmware Neo6502picowifi puis copie sur `RPI-RP2`

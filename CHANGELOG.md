@@ -7,10 +7,17 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/).
 
 ## [non publié]
 
+- 2026-09-24 : **historique réécrit** (`git filter-repo`) : lignes de co-auteur ajoutées par l'outil
+  d'assistance retirées de 30 messages de commit (toutes branches et tags). Arbres de fichiers
+  inchangés : `v0.4.2` recompilé → UF2 identique à la release (`b21a5847…`). Identifiants de commit
+  changés ; ceux cités dans la documentation sont mis à jour. Six de ces commits avaient été
+  fusionnés chez `sodiumlb/PicoWiFiModemUSB` (PR #1 à #5, #10) : ils y restent tels quels.
+  Sauvegarde de l'historique d'avant : `~/sauvegardes-git-2026-09-24/`.
+
 ## [0.4.2] — 2026-09-24 — Wi-Fi : mode WPA2 mixte (TKIP + AES)
 
 - 2026-09-24 : release **v0.4.2 publiée** — https://github.com/benedictemarty/PicoWiFiModemUSB/releases/tag/v0.4.2
-  (tag `v0.4.2` sur `74737e5`). `wifi_modem-v0.4.2.uf2` SHA-256
+  (tag `v0.4.2` sur `766552b`). `wifi_modem-v0.4.2.uf2` SHA-256
   `b21a5847f5b947ff7779376cabeb28990e6bf36b5773ab892c62941b020e50d2` (reproductible : recompilé à
   l'identique à la publication). Validé sur carte **21/21** ; contrôle manuel en plus : `ATC0` →
   `LINK IS DOWN`, `ATC1` → reconnecté en 5,4 s en mode mixte. `validate_trust_store.py` vérifie
@@ -34,7 +41,7 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/).
 ## [0.4.1] — 2026-09-24 — Version unique, identifiant de build, compilation reproductible
 
 - 2026-09-24 : release **v0.4.1 publiée** — https://github.com/benedictemarty/PicoWiFiModemUSB/releases/tag/v0.4.1
-  (tag `v0.4.1` sur `84c249e`). `wifi_modem-v0.4.1.uf2` SHA-256
+  (tag `v0.4.1` sur `2099547`). `wifi_modem-v0.4.1.uf2` SHA-256
   `016913520f4dea7a4f3341b0f753a7cf160f5521cb702a852119cf0d06cf0f6f` : produit par
   `tools/release.sh` (deux compilations identiques), puis **recompilé à l'identique** lors de la
   publication. Validé sur carte **19/19** (`validation/validate_trust_store.py`, dont `ATI` →
@@ -51,7 +58,7 @@ donnaient deux UF2 différents : `ATI` affichait `__DATE__ __TIME__`, et CMake f
 - **Identifiant de build** : `cmake/build_id.cmake`, exécuté à chaque compilation, écrit
   `build_id.h` depuis git : `FW_BUILD` (`git describe` : `v0.4.0` pour une release,
   `v0.4.0-N-gSHA[-dirty]` sinon), `FW_BUILD_DATE` (date du commit, UTC, locale C),
-  `BUILD_EPOCH` (date du commit). `ATI` : `Build......: v0.4.0-1-g53eea90-dirty (Sep 24 2026
+  `BUILD_EPOCH` (date du commit). `ATI` : `Build......: v0.4.0-1-g3a10fab-dirty (Sep 24 2026
   17:02:08 UTC)` au lieu de la date de compilation.
 - **Reproductible** : deux compilations dans deux répertoires → UF2 identiques (vérifié).
 - **`tools/release.sh`** : contrôles (main, arbre propre, section CHANGELOG), tests hôte, tag,
@@ -66,7 +73,7 @@ donnaient deux UF2 différents : `ATI` affichait `__DATE__ __TIME__`, et CMake f
 ## [0.4.0] — 2026-09-24 — Magasin de racines Mozilla intégré, vérification activée par défaut
 
 - 2026-09-24 : release **v0.4.0 publiée** — https://github.com/benedictemarty/PicoWiFiModemUSB/releases/tag/v0.4.0
-  (tag `v0.4.0` sur `cc42058`). `wifi_modem-v0.4.0.uf2` SHA-256
+  (tag `v0.4.0` sur `791d2b7`). `wifi_modem-v0.4.0.uf2` SHA-256
   `a18f7ee3587f2f832bc60557b4ee91936cc35108c626145c19b2d3c979e3aa80` = l'UF2 validé 18/18 sur carte ;
   paquet `PicoWiFiModemUSB-v0.4.0.zip` (firmware, `wificonf.bas`, `serialcore.asm`, manuels EN/FR mis à
   jour — section 7b réécrite —, `README.txt`), sans `ca-bundle-lfs.uf2`.
