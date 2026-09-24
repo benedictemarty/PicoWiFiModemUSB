@@ -67,3 +67,10 @@ Mesures A/B sur la même carte, 3 essais par hôte :
 | untrusted-root.badssl.com → CONNECT (AT$CV0 accepts any certificate) | OK | CONNECT, 3.0 s |
 | AT$CV1 (restore; no CA needed any more) | OK |  |
 | untrusted-root.badssl.com → NO CARRIER (verification back on) | OK | NO CARRIER, 0.7 s |
+
+## v0.4.1 — 2026-09-24 22:30
+
+`dist/wifi_modem-v0.4.1.uf2` (SHA-256 `01691352…`, compilation reproductible) flashé sur la même
+carte : `validate_trust_store.py` **19/19** (nouvelle étape : `ATI` → `Build......: v0.4.1 (Sep 24
+2026 20:05:40 UTC)`, l'identifiant du tag). Temps : badssl.com 1,9 s, www.digicert.com 0,9 s,
+github.com 3,0 s.

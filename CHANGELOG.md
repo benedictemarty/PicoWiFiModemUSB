@@ -9,6 +9,13 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/).
 
 ## [0.4.1] — 2026-09-24 — Version unique, identifiant de build, compilation reproductible
 
+- 2026-09-24 : release **v0.4.1 publiée** — https://github.com/benedictemarty/PicoWiFiModemUSB/releases/tag/v0.4.1
+  (tag `v0.4.1` sur `84c249e`). `wifi_modem-v0.4.1.uf2` SHA-256
+  `016913520f4dea7a4f3341b0f753a7cf160f5521cb702a852119cf0d06cf0f6f` : produit par
+  `tools/release.sh` (deux compilations identiques), puis **recompilé à l'identique** lors de la
+  publication. Validé sur carte **19/19** (`validation/validate_trust_store.py`, dont `ATI` →
+  `Build......: v0.4.1 (Sep 24 2026 20:05:40 UTC)`). Paquet `PicoWiFiModemUSB-v0.4.1.zip`.
+
 ### 2026-09-24 — Version unique, identifiant de build, compilation reproductible
 
 Même démarche que le modem Neo6502picowifi (US-W3/US-W5). Deux compilations de la v0.4.0
@@ -30,7 +37,7 @@ donnaient deux UF2 différents : `ATI` affichait `__DATE__ __TIME__`, et CMake f
   version codée en dur, aucun `__DATE__`/`__TIME__`/`TIMESTAMP` dans les sources) ; `run.sh`
   définit `FW_VERSION` pour les tests qui incluent `wifi_modem.h`. Mutation vérifiée (VERSION
   modifié → échec).
-- Non flashé sur carte : seule la chaîne `Build` de `ATI` change (contrôlée dans le binaire).
+- Flashé et validé sur carte avec la release v0.4.1 (voir ci-dessus).
 
 ## [0.4.0] — 2026-09-24 — Magasin de racines Mozilla intégré, vérification activée par défaut
 
