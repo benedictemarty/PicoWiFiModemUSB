@@ -37,8 +37,12 @@ Neo6502picowifi (US-T13), adaptés à mbedTLS 2.28.
   `fixtures/gen.sh` et réelles DigiCert / github.com / mimuma.pl, refus, jumelles, échec
   d'allocation, fuites ; 187 vérifications ; pic de tas 6,7–12,2 Ko par vérification contre
   401 Ko pour décoder les 150 racines d'avance), `test_settings_migrate.c`.
-- **Validation matérielle** : `validation/validate_trust_store.py` (versionné) — trois autorités,
-  trois refus, remplacement par `AT$CA=`, `AT$CV0`. **Pas encore exécuté** : carte non branchée.
+- **Validation matérielle** : `validation/validate_trust_store.py` (versionné) — **18/18** le
+  2026-09-24 (`validation/RAPPORT-validation-v0.4.0.md`) : trois autorités (Let's Encrypt,
+  DigiCert, Sectigo), trois refus, remplacement par `AT$CA=`, `AT$CV0`/`AT$CV1`. Migration
+  constatée sur une carte 0.3.x : Wi-Fi conservé, vérification activée. Magasin indexé plus
+  rapide que le bundle LittleFS lu en entier (badssl.com 3,8 s contre 6,7 s, www.digicert.com
+  0,9 s contre 2,5 s ; github.com 12,4 s contre 14,4 s, dominé par ECDSA P-384).
 - Non changé : sans heure SNTP, les dates des certificats ne sont pas rejetées (horloge de repli
   = date de compilation), comportement documenté depuis la 0.3.0.
 
