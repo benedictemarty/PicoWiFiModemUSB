@@ -4,6 +4,7 @@
 #if LWIP_ALTCP_TLS_MBEDTLS
 #include "mbedtls/ssl.h"       // mbedtls_ssl_set_hostname() for TLS SNI
 #include "mbedtls/x509_crt.h"  // E-lazy on-demand trusted-CA callback
+#include "roots_ca_cb.h"        // built-in trust store (used when no CA is uploaded)
 #include "mbedtls/platform.h"  // mbedtls_calloc() / mbedtls_free()
 #include <string.h>
 
@@ -345,11 +346,13 @@ TCP_CLIENT_T *tcpConnect(TCP_CLIENT_T *client, const char *host, int portNum, bo
    } else {
       // The altcp allocator selects the transport: plain TCP, or a terminated
       // TLS session when the call is secure (dial prefix '#'). The shared client
-      // TLS config carries NO CA chain in RAM. Trust is resolved per-handshake:
-      // when verification is enabled (AT$CV1 + a bundle present) the lazyCaCb
-      // callback streams the LittleFS bundle and parses one CA at a time, so RAM
-      // stays flat regardless of bundle size (E-lazy; design §10). Authmode and
-      // the CA callback are (re)applied per pcb in the SNI block below.
+      // TLS config carries NO CA chain in RAM. Trust is resolved per-handshake
+      // when verification is enabled (AT$CV1, the default): from the uploaded
+      // LittleFS bundle if any (lazyCaCb streams it and parses one CA at a time),
+      // otherwise from the built-in Mozilla store in flash (roots_ca_cb, indexed
+      // by subject). Either way RAM stays flat regardless of the store size
+      // (E-lazy; design §10). Authmode and the CA callback are (re)applied per
+      // pcb in the SNI block below.
       altcp_allocator_t allocator;
       if( secure ) {
          static struct altcp_tls_config *tlsConfig = NULL;
@@ -378,14 +381,18 @@ TCP_CLIENT_T *tcpConnect(TCP_CLIENT_T *client, const char *host, int portNum, bo
       if( ssl ) {
          mbedtls_ssl_set_hostname(ssl, host);
          // Per-call auth mode: REQUIRED aborts the handshake on an untrusted
-         // cert (verify on + a bundle present), NONE accepts any peer (insecure).
-         // In REQUIRED mode trust is resolved on demand by lazyCaCb (E-lazy):
-         // the shared config holds no CA chain, the callback supplies the right
-         // CA from the LittleFS bundle one at a time.
+         // cert (verify on), NONE accepts any peer (AT$CV0, insecure). In
+         // REQUIRED mode trust is resolved on demand (E-lazy): an uploaded CA
+         // (AT$CA=) REPLACES the built-in store, so a user can restrict trust
+         // to a private root; with none, the built-in Mozilla store is used.
          if( ssl->conf ) {
             mbedtls_ssl_config *conf = (mbedtls_ssl_config *)ssl->conf;
-            if( settings.tlsVerify && hasCACert() ) {
-               mbedtls_ssl_conf_ca_cb(conf, lazyCaCb, NULL);
+            if( settings.tlsVerify ) {
+               if( hasCACert() ) {
+                  mbedtls_ssl_conf_ca_cb(conf, lazyCaCb, NULL);
+               } else {
+                  mbedtls_ssl_conf_ca_cb(conf, roots_ca_cb, (void *)&roots_store);
+               }
                mbedtls_ssl_conf_verify(conf, dateVerifyCb, NULL);  // date check (SNTP)
                mbedtls_ssl_conf_authmode(conf, MBEDTLS_SSL_VERIFY_REQUIRED);
             } else {

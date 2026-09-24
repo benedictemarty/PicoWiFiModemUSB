@@ -67,8 +67,10 @@ etc.) are listed under [References](#references).
 - **Byte-exact binary upload** (`ATDISKWR`): raw `PUT` of a length-prefixed slice,
   streamed, response relayed verbatim — for payloads text framing would corrupt
   (a disk track, a saved program). HTTP transactions are never Telnet-processed.
-- **Certificate verification** (`AT$CV1`) against a user-provided CA
-  (`AT$CA=`) — refused unless a CA is present, so it never fails open.
+- **Certificate verification, on by default** (`AT$CV1`) against a **built-in
+  Mozilla trust store** (150 roots kept in flash, only the needed root parsed
+  into RAM), or against a user-provided CA (`AT$CA=`) that replaces it.
+  `AT$CV0` is the explicit insecure opt-out.
 - **NTP time sync** on WiFi connection: certificate **validity dates** (not-yet-valid
   / expired) are checked once the clock is set (`AT$TIME`, `AT$TZ`).
 - On-board flash storage via **LittleFS** (settings + CA), in the area not used
@@ -152,8 +154,19 @@ ATGEThttps://example.com
 
 ### Certificate verification
 
-By default verification is **off** (`AT$CV0`, insecure: any server certificate is
-accepted). To verify the server certificate against a trusted root:
+Since v0.4.0 verification is **on by default** (`AT$CV1`): the server
+certificate must chain to a root of the **built-in trust store** — the Mozilla
+store (150 roots: Let's Encrypt, DigiCert, Sectigo, GlobalSign, Google…,
+provenance in [`certs/README.md`](certs/README.md)). The roots live in flash
+(160 KB of DER + an index sorted by subject); during the handshake only the
+root(s) that can sign the chain are parsed into RAM, so the heap does not grow
+with the store (host measurement: ~12 KB peak per verification vs ~400 KB to
+parse all 150 roots). A connection whose certificate does not chain to a trusted
+root (self-signed, unknown root), has the wrong hostname or is expired is
+**refused**.
+
+To trust **only** your own root (private server, self-signed CA), upload it — it
+**replaces** the built-in store until deleted:
 
 ```
 AT$CA=                 then paste a CA certificate in PEM form,
@@ -161,13 +174,14 @@ AT$CA=                 then paste a CA certificate in PEM form,
 …                      finish with a line containing only a single '.'
 -----END CERTIFICATE-----
 .
-AT$CV1                 enable verification (returns ERROR if no CA is stored)
-AT&W                   persist
+AT$CA?                 CA: <n> bytes (replaces the built-in store)
+AT$CA-                 delete it: back to the built-in store
 ```
 
-With a CA loaded and `AT$CV1` enabled, a connection whose certificate does not
-chain to that CA (self-signed, unknown root, wrong hostname) is **refused**.
-`AT$CA?` reports the stored CA size; `AT$CA-` deletes it.
+`AT$CV0` disables verification (insecure: any certificate is accepted); persist
+with `AT&W`. Upgrading from 0.3.x keeps every setting (WiFi included) but
+switches verification **on**, since the stored `0` came from the former insecure
+default; run `AT$CV0` + `AT&W` again if you really want it off.
 
 ### Clock and certificate dates
 
@@ -272,8 +286,8 @@ AT&Z*n*?<br>AT&Z*n*=*host[:port],alias* | Store up to 10 speed-dial entries. Exa
 AT$AE?<br>AT$AE=*startup AT cmd* | Query/change the command line executed at startup.
 AT$AYT | Send a Telnet "Are You There?" if connected to a Telnet remote.
 AT$BM?<br>AT$BM=*server busy msg* | Query/change the message returned to an incoming connection while busy.
-AT$CA?<br>AT$CA=<br>AT$CA- | TLS CA management. `?` reports the stored CA size (bytes), `=` uploads a CA in PEM form (end with a line containing only `.`), `-` deletes it. See [TLS / HTTPS](#tls--https).
-AT$CV?<br>AT$CV*n* | TLS certificate verification. 0 = off (insecure, accept any cert), 1 = on. `AT$CV1` returns **ERROR** unless a CA is stored.
+AT$CA?<br>AT$CA=<br>AT$CA- | TLS CA management. `?` reports the uploaded CA size (bytes) and the trust store in use (`built-in store: 150 roots` when none), `=` uploads a CA in PEM form that **replaces** the built-in store (end with a line containing only `.`), `-` deletes it (back to the built-in store). See [TLS / HTTPS](#tls--https).
+AT$CV?<br>AT$CV*n* | TLS certificate verification. 1 = on (**default**, built-in store or uploaded CA), 0 = off (insecure, accept any cert).
 AT$MDNS?<br>AT$MDNS=*mDNS name* | Query/change the mDNS network name. With a non-zero TCP port set, reach it via `telnet mdnsname.local port`.
 AT$PASS?<br>AT$PASS=*WiFi pwd* | Query/change the WiFi password (case sensitive, max 64 chars). Set empty to clear.
 AT$SB?<br>AT$SB=*n* | Query/change baud rate: 110, 300, 450, 600, 710, 1200, 2400, 4800, 9600, 19200, 38400, 57600, 76800, 115200. Must match your terminal.

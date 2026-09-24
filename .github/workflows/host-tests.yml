@@ -4,6 +4,8 @@ name: host-tests
 # These pin two firmware invariants without any Pico:
 #   - USB configuration descriptor consistency (Windows COM-port fix, v0.3.3)
 #   - AT&W flash writes always run with interrupts masked (NVRAM deadlock fix)
+#   - built-in trust store: generator, indexed lookup, mbedTLS CA callback,
+#     0.3.x settings migration (verification on by default, v0.4.0)
 on:
   push:
     branches: ['**']
@@ -23,8 +25,15 @@ jobs:
       - name: Fetch required submodules
         run: git submodule update --init --depth 1 src/tinyusb src/littlefs
 
+      # The roots_ca_cb test builds the SDK's mbedTLS on the host: fetch the
+      # pico-sdk shallowly and ONLY its lib/mbedtls nested submodule.
+      - name: Fetch mbedTLS (pico-sdk lib/mbedtls only)
+        run: |
+          git submodule update --init --depth 1 src/pico-sdk
+          git -C src/pico-sdk submodule update --init --depth 1 lib/mbedtls
+
       - name: Install toolchain
-        run: sudo apt-get update && sudo apt-get install -y gcc
+        run: sudo apt-get update && sudo apt-get install -y gcc python3
 
       - name: Run host tests
         run: ./validation/host-tests/run.sh

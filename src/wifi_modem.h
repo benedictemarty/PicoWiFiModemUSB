@@ -11,7 +11,10 @@
    // 0.3.3: fix USB config descriptor — single CDC (was advertising 2 CDC / 4
    // interfaces with CFG_TUD_CDC=1, so wTotalLength≠bNumInterfaces). Windows
    // rejected it → no COM port (Linux tolerated it). Reported on defence-force forum.
-   #define FW_VERSION            "0.3.3"
+   // 0.4.0: built-in Mozilla trust store in flash (roots_ca_cb, indexed lookup)
+   // and certificate verification ON by default; an uploaded CA replaces the
+   // store; settings from 0.3.x migrated (MAGIC_NUMBER_V03 → verification on).
+   #define FW_VERSION            "0.4.0"
 
    #define DEBUG                 0
    #define DEFAULT_SPEED         9600
@@ -22,7 +25,8 @@
    #define ESC_CHAR              '+'
    #define ESC_COUNT             3
    #define GUARD_TIME            1000
-   #define MAGIC_NUMBER          0x567A   // bump: ajout de tzOffsetMin (v0.3.1)
+   #define MAGIC_NUMBER          0x567B   // bump: verification on by default (v0.4.0)
+   #define MAGIC_NUMBER_V03      0x567A   // 0.3.1..0.3.3 layout (identical): migrated, see migrateSettings()
    #define MAX_SSID_LEN          32
    #define MAX_WIFI_PWD_LEN      64
    #define DEFAULT_LISTEN_PORT   6400

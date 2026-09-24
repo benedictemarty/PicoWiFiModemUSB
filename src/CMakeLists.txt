@@ -38,12 +38,25 @@ else()
       set(SER_BACKEND ser_cdc.c)
 endif()
 
+# Built-in trust store (certs/roots.pem, Mozilla) → DER + index in flash.
+find_package(Python3 REQUIRED COMPONENTS Interpreter)
+add_custom_command(
+      OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/roots_gen.c
+      COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_LIST_DIR}/../tools/roots2c.py
+              ${CMAKE_CURRENT_LIST_DIR}/../certs/roots.pem ${CMAKE_CURRENT_BINARY_DIR}/roots_gen.c
+      DEPENDS ${CMAKE_CURRENT_LIST_DIR}/../certs/roots.pem ${CMAKE_CURRENT_LIST_DIR}/../tools/roots2c.py
+      COMMENT "Generating roots_gen.c from certs/roots.pem"
+      )
+
 add_executable(${PROJECT_NAME}
       ${PROJECT_NAME}.cpp
       ${SER_BACKEND}
       usb_cdc.c
       lfs.c
       usb_descriptors.c
+      roots_store.c
+      roots_ca_cb.c
+      ${CMAKE_CURRENT_BINARY_DIR}/roots_gen.c
       littlefs/lfs.c
       littlefs/lfs_util.c
       )

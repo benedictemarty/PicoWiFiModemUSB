@@ -7,6 +7,41 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/).
 
 ## [non publié]
 
+### 2026-09-24 — v0.4.0 : magasin de racines Mozilla intégré, vérification activée par défaut
+
+Jusqu'ici la vérification des certificats était **désactivée par défaut** (`AT$CV0`) : tant
+qu'aucun CA n'était chargé par `AT$CA=` puis activé par `AT$CV1`, le modem acceptait n'importe
+quel certificat. Le magasin de racines et sa recherche indexée sont repris du modem
+Neo6502picowifi (US-T13), adaptés à mbedTLS 2.28.
+
+- **Magasin intégré** : `certs/roots.pem` = 150 racines Mozilla (`ca-certificates` 20250419,
+  provenance dans `certs/README.md`), compilées par `tools/roots2c.py` en DER concaténés dans la
+  flash (159 591 o) + index trié par FNV-1a du sujet (`src/roots_store.[ch]`). Pendant le
+  handshake, `roots_ca_cb` (`src/roots_ca_cb.[ch]`) ne décode que les racines dont le sujet
+  égale l'émetteur recherché, sans copie du DER (`mbedtls_x509_crt_parse_der_nocopy`), et les
+  renvoie toutes (racines jumelles gérées).
+- **Vérification activée par défaut** : `factoryDefaults` → `tlsVerify = true` ; `AT$CV1` n'exige
+  plus de CA chargé ; `AT$CV0` reste le refus explicite (non sécurisé).
+- **`AT$CA=` remplace le magasin** (confiance restreinte à une racine privée) ; `AT$CA-` y revient.
+  `AT$CA?` indique le magasin utilisé : `CA: 0 bytes (built-in store: 150 roots)` ou
+  `CA: <n> bytes (replaces the built-in store)`.
+- **Migration 0.3.x** : `MAGIC_NUMBER` 0x567A → 0x567B ; `migrateSettings()`
+  (`src/settings_migrate.h`) conserve tous les réglages d'une 0.3.x (Wi-Fi compris, même
+  structure) et passe `tlsVerify` à 1, la valeur stockée venant de l'ancien défaut non sécurisé ;
+  réécrite en flash au prochain `AT&W` seulement.
+- `FW_VERSION` 0.3.3 → **0.4.0**. Image 522 076 → 689 540 o (zone LittleFS à 1,5 Mo : marge
+  ~880 Ko), BSS inchangée.
+- **Tests hôte** (`validation/host-tests/run.sh`, CI : récupère aussi `lib/mbedtls` du SDK) :
+  `test_roots2c.py` (générateur, recoupé avec `cryptography`), `test_roots_store.c` (1 069
+  vérifications), `test_roots_ca_cb.c` (mbedTLS 2.28 compilé sur PC : chaînes locales
+  `fixtures/gen.sh` et réelles DigiCert / github.com / mimuma.pl, refus, jumelles, échec
+  d'allocation, fuites ; 187 vérifications ; pic de tas 6,7–12,2 Ko par vérification contre
+  401 Ko pour décoder les 150 racines d'avance), `test_settings_migrate.c`.
+- **Validation matérielle** : `validation/validate_trust_store.py` (versionné) — trois autorités,
+  trois refus, remplacement par `AT$CA=`, `AT$CV0`. **Pas encore exécuté** : carte non branchée.
+- Non changé : sans heure SNTP, les dates des certificats ne sont pas rejetées (horloge de repli
+  = date de compilation), comportement documenté depuis la 0.3.0.
+
 ### 2026-09-10 — Doc : `README.md` documente `ATDISKWR`
 
 Le code de `ATDISKWR` était livré et validé sur matériel, mais le `README.md` n'en

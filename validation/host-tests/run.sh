@@ -58,4 +58,57 @@ echo "== Running AT&W / writeSettings test =="
 "$OUT/test_lfs_atw"
 
 echo
+# ── Built-in trust store (v0.4.0) ────────────────────────────────────────────
+# Generator (tools/roots2c.py), indexed lookup (src/roots_store.c), the mbedTLS
+# CA callback (src/roots_ca_cb.c) and the 0.3.x → 0.4.0 settings migration.
+ROOT="$HERE/../.."
+SAN="-fsanitize=address,undefined"
+echo "== Running trust store generator test (roots2c.py) =="
+python3 "$HERE/test_roots2c.py"
+
+echo "== Building trust store lookup test =="
+python3 "$ROOT/tools/roots2c.py" "$ROOT/certs/roots.pem" "$OUT/roots_gen.c"
+"$CC" -std=c11 -Wall -Wextra -Werror $SAN -I"$SRC" \
+  "$HERE/test_roots_store.c" "$SRC/roots_store.c" "$OUT/roots_gen.c" \
+  -o "$OUT/test_roots_store"
+echo "== Running trust store lookup test =="
+"$OUT/test_roots_store"
+
+echo
+echo "== Building settings migration test =="
+"$CC" -std=c11 -Wall -Wextra \
+  -I"$STUBS_LFS" \
+  -I"$SRC" \
+  "$HERE/test_settings_migrate.c" \
+  -o "$OUT/test_settings_migrate"
+echo "== Running settings migration test =="
+"$OUT/test_settings_migrate"
+
+echo
+# The CA callback test builds the SDK's mbedTLS 2.28 on the host. It needs the
+# src/pico-sdk submodule with lib/mbedtls (or MBEDTLS_DIR); without it the test
+# is SKIPPED, loudly.
+MBEDTLS_DIR="${MBEDTLS_DIR:-$SRC/pico-sdk/lib/mbedtls}"
+if [ -f "$MBEDTLS_DIR/library/x509_crt.c" ]; then
+  echo "== Building mbedTLS for the host (mbedtls_host_config.h) =="
+  mkdir -p "$OUT/mbed"
+  for f in "$MBEDTLS_DIR"/library/*.c; do
+    "$CC" -std=c11 -O1 -w $SAN -I"$HERE" -I"$MBEDTLS_DIR/include" -I"$MBEDTLS_DIR/library" \
+      -DMBEDTLS_CONFIG_FILE='"mbedtls_host_config.h"' -c "$f" -o "$OUT/mbed/$(basename "$f" .c).o"
+  done
+  python3 "$ROOT/tools/roots2c.py" "$HERE/fixtures/store.pem" "$OUT/roots_fixture_gen.c" \
+    --symbol roots_fixture 2>/dev/null
+  echo "== Building roots_ca_cb test =="
+  "$CC" -std=c11 -Wall -Wextra -Werror $SAN -I"$HERE" -I"$SRC" -I"$MBEDTLS_DIR/include" \
+    -DMBEDTLS_CONFIG_FILE='"mbedtls_host_config.h"' \
+    "$HERE/test_roots_ca_cb.c" "$SRC/roots_ca_cb.c" "$SRC/roots_store.c" \
+    "$OUT/roots_gen.c" "$OUT/roots_fixture_gen.c" "$OUT"/mbed/*.o \
+    -o "$OUT/test_roots_ca_cb"
+  echo "== Running roots_ca_cb test =="
+  (cd "$HERE" && "$OUT/test_roots_ca_cb")
+else
+  echo "*** roots_ca_cb test SKIPPED: mbedTLS not found ($MBEDTLS_DIR) — init src/pico-sdk + lib/mbedtls or set MBEDTLS_DIR ***"
+fi
+
+echo
 echo "All host tests passed."

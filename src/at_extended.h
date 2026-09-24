@@ -32,7 +32,7 @@ char *factoryDefaults(char *atCmd) {
    settings.verbose = true;
    settings.quiet = false;
    settings.dtrHandling = DTR_IGNORE;
-   settings.tlsVerify = false;   // insecure by default; enable with AT$CV1 once a CA is stored
+   settings.tlsVerify = true;    // verify by default (built-in store); AT$CV0 to opt out
    settings.tzOffsetMin = 0;     // UTC by default (AT$TZ to set a local offset)
 
    strcpy(settings.alias[0], "particles");

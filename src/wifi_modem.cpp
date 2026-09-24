@@ -52,6 +52,7 @@
 #include "wifi_modem.h"
 //#include "eeprom.h"
 #include "lfs.h"
+#include "settings_migrate.h"
 #include "time_support.h"
 #include "tcp_support.h"
 #include "support.h"
@@ -108,7 +109,7 @@ void setup(void) {
    initLFS();
    readSettings(&settings);
 
-   if( settings.magicNumber != MAGIC_NUMBER ) {
+   if( !migrateSettings(&settings) ) {
       // no valid data in EEPROM/NVRAM, populate with defaults
       factoryDefaults(NULL);
    }

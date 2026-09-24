@@ -615,7 +615,8 @@ char *doStartupWait(char *atCmd) {
 //
 // AT$CV? query TLS certificate verification (0 = off/insecure, 1 = on)
 // AT$CV0 disable certificate verification (insecure: accept any server cert)
-// AT$CV1 enable certificate verification (ERROR if no CA stored in LittleFS)
+// AT$CV1 enable certificate verification (the default): against the uploaded
+//        CA if any, otherwise against the built-in Mozilla store
 //
 char *doCertVerify(char *atCmd) {
    switch( atCmd[0] ) {
@@ -635,16 +636,10 @@ char *doCertVerify(char *atCmd) {
          break;
       case '1':
          ++atCmd;
-         // Refuse to enable verification without a stored CA: otherwise it would
-         // be silently insecure (no CA => VERIFY_NONE accepts any cert), giving a
-         // false sense of security. Load a CA first with AT$CA=.
-         if( !hasCACert() ) {
-            sendResult(R_ERROR);
-         } else {
-            settings.tlsVerify = true;
-            if( !atCmd[0] ) {
-               sendResult(R_OK);
-            }
+         // Always possible: with no uploaded CA, the built-in store is used.
+         settings.tlsVerify = true;
+         if( !atCmd[0] ) {
+            sendResult(R_OK);
          }
          break;
       default:
@@ -655,7 +650,8 @@ char *doCertVerify(char *atCmd) {
 }
 
 //
-// AT$CA? report the stored TLS CA size in bytes (0 = none)
+// AT$CA? report the stored TLS CA size in bytes (0 = none: the built-in store
+//        is used) and which trust store verification uses
 // AT$CA= upload a CA certificate (PEM); end with a line containing only '.'
 // AT$CA- delete the stored CA
 //
@@ -663,7 +659,11 @@ char *doCACert(char *atCmd) {
    switch( atCmd[0] ) {
       case '?':
          ++atCmd;
-         printf("CA: %d bytes\r\n", caCertSize());
+         if( caCertSize() > 0 ) {
+            printf("CA: %d bytes (replaces the built-in store)\r\n", caCertSize());
+         } else {
+            printf("CA: 0 bytes (built-in store: %d roots)\r\n", roots_store.count);
+         }
          if( !atCmd[0] ) {
             sendResult(R_OK);
          }
