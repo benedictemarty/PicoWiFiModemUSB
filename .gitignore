@@ -2,3 +2,8 @@ build
 build-wokwi
 .vscode/.*
 dist/
+# Tenus en local uniquement, jamais suivis par git (decision bmarty 2026-09-27)
+CHANGELOG.md
+ROADMAP.md
+changelog.md
+roadmap.md
